@@ -1,0 +1,61 @@
+-- Dedicated project only. All fixture/configuration changes roll back.
+begin;
+select set_config('test.ai_baseline',(select coalesce(sum(coalesce(estimated_usd,reserved_usd)),0)::text from private.ai_usage where created_at>=date_trunc('month',now() at time zone 'UTC') at time zone 'UTC'),true);
+insert into auth.users(id) values('81000000-0000-4000-8000-000000000008');
+select set_config('request.jwt.claim.sub','81000000-0000-4000-8000-000000000008',true);
+update private.ai_runtime set server_token_hash=sha256(convert_to('fixture-server-proof','UTF8')),pricing_verified=current_date;
+set local role authenticated;
+do $$declare p uuid;l uuid;stamp timestamptz;op uuid;r jsonb;n integer;begin
+ p=public.manage_page(null,'Call-only history fixture','',false);
+ insert into public.leads(page_id,business_name) values(p,'History fixture') returning id,updated_at into l,stamp;
+ perform public.save_lead(l,stamp,'{"notes":"Direct notes edit"}');
+ if not exists(select 1 from public.leads where id=l and business_name='History fixture' and notes='Direct notes edit' and status='new') then raise exception 'Notes-only patch changed business fields';end if;
+ select updated_at into stamp from public.leads where id=l;
+ op=public.record_call(l,stamp,gen_random_uuid(),'not_interested','One call, several audit facts');
+ r=public.calling_history_range(current_date,current_date,'UTC',p);
+ if (r->>'total')::int<>1 or (r#>>'{summary,attempts}')::int<>1 or (r#>>'{rows,0,notes}')<>'One call, several audit facts' or (r#>>'{rows,0,attempt_number}')::int<>1 then raise exception 'Call-only projection failed: %',r;end if;
+ if (public.activity_range(current_date,current_date,'UTC',p)->>'total')::int<=1 then raise exception 'Internal audit events removed';end if;
+ perform public.undo_workflow(op);
+ r=public.calling_history_range(current_date,current_date,'UTC',p);
+ if (r->>'total')::int<>1 or r#>>'{rows,0,voided_at}' is null or (r#>>'{summary,attempts}')::int<>0 then raise exception 'Correction or historical counters changed';end if;
+ raise notice 'PASS: one call row, full internal audit, exact note/ordinal, corrections excluded from statistics';
+ begin perform public.ai_csv_reserve(gen_random_uuid(),1000,null);raise exception 'NULL proof accepted';exception when raise_exception then if sqlerrm='NULL proof accepted' then raise;end if;end;
+ begin perform public.ai_csv_reserve(gen_random_uuid(),1000,'bad-proof');raise exception 'Forged proof accepted';exception when raise_exception then if sqlerrm='Forged proof accepted' then raise;end if;end;
+ op=gen_random_uuid();perform public.ai_csv_reserve(op,2000,'fixture-server-proof');
+ begin perform public.ai_csv_reserve(op,2000,'fixture-server-proof');raise exception 'Repeated reservation accepted';exception when raise_exception then if sqlerrm='Repeated reservation accepted' then raise;end if;end;
+ begin perform public.ai_csv_settle(op,0,0,'forged-proof');raise exception 'Forged usage settlement accepted';exception when raise_exception then if sqlerrm='Forged usage settlement accepted' then raise;end if;end;
+ begin perform public.ai_csv_settle(op,500,513,'fixture-server-proof');raise exception 'Output cap ignored';exception when raise_exception then if sqlerrm='Output cap ignored' then raise;end if;end;
+ perform public.ai_csv_settle(op,500,40,'fixture-server-proof');perform public.ai_csv_settle(op,500,40,'fixture-server-proof');
+ if (public.ai_csv_status()->>'estimated_spent')::numeric<>current_setting('test.ai_baseline')::numeric+0.000198 then raise exception 'Cost settlement incorrect';end if;
+ perform set_config('request.jwt.claim.sub','82000000-0000-4000-8000-000000000008',true);
+ begin perform public.ai_csv_settle(op,0,0,'fixture-server-proof');raise exception 'Cross-owner settlement accepted';exception when raise_exception then if sqlerrm='Cross-owner settlement accepted' then raise;end if;end;
+ if (public.calling_history_range(current_date,current_date,'UTC')->>'total')::int<>0 then raise exception 'Cross-owner call history exposed';end if;
+ raise notice 'PASS: server proof, NULL proof, idempotent billing, request replay protection, cross-owner isolation';
+end $$;
+reset role;
+update private.ai_runtime set pricing_verified=current_date-31;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','81000000-0000-4000-8000-000000000008',true);
+do $$begin
+ begin perform public.ai_csv_reserve(gen_random_uuid(),2000,'fixture-server-proof');raise exception 'Stale pricing accepted';exception when raise_exception then if sqlerrm<>'Review current provider pricing before enabling AI' then raise;end if;end;
+ begin perform count(*) from private.ai_runtime;raise exception 'Client read server proof';exception when insufficient_privilege then null;end;
+ raise notice 'PASS: stale pricing blocks requests and server proof configuration is private';
+end $$;
+reset role;
+update private.ai_runtime set pricing_verified=current_date;
+update private.ai_runtime set monthly_budget=current_setting('test.ai_baseline')::numeric+0.000199;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','81000000-0000-4000-8000-000000000008',true);
+do $$begin
+ begin perform public.ai_csv_reserve(gen_random_uuid(),2000,'fixture-server-proof');raise exception 'Budget bypassed';exception when raise_exception then if sqlerrm<>'Monthly AI budget exhausted' then raise;end if;end;
+ raise notice 'PASS: monthly cutoff blocks requests before the provider is called';
+end $$;
+reset role;
+delete from auth.users where id='81000000-0000-4000-8000-000000000008';
+do $$begin if (select sum(coalesce(estimated_usd,reserved_usd)) from private.ai_usage where created_at>=date_trunc('month',now() at time zone 'UTC') at time zone 'UTC')<>current_setting('test.ai_baseline')::numeric+0.000198 then raise exception 'Account removal reset global billing';end if;raise notice 'PASS: anonymous global cost survives temporary account deletion';end $$;
+set local role anon;
+do $$begin
+ begin perform public.ai_csv_status();raise exception 'Anonymous billing read';exception when insufficient_privilege then null;end;
+ begin perform public.calling_history_range(current_date,current_date);raise exception 'Anonymous history read';exception when insufficient_privilege then null;end;
+end $$;
+rollback;

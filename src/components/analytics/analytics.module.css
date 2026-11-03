@@ -1,0 +1,81 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 16px 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.controls label {
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.controls [data-slot="select-trigger"],
+.controls input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.rangeLabel {
+  flex-basis: 100%;
+  font-size: 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 20px 0;
+  background: var(--surface);
+}
+.metric {
+  padding: 15px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.metric dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.metric dd {
+  font-size: 20px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+.caption {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+@media (max-width: 600px) {
+  .controls {
+    gap: 10px;
+  }
+  .controls label {
+    flex-basis: calc(50% - 10px);
+  }
+  .controls label:nth-child(3) {
+    flex-basis: 100%;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric {
+    padding: 13px;
+  }
+  .metric dd {
+    font-size: 18px;
+  }
+}

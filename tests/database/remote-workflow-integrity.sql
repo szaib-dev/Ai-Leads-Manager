@@ -1,0 +1,76 @@
+-- Explicit dedicated project only. Existing confirmed account; every fixture write rolls back.
+begin;
+select set_config('request.jwt.claim.sub',(select id::text from auth.users where email_confirmed_at is not null order by created_at desc limit 1),true);
+set local role authenticated;
+do $$declare p uuid;l uuid;l2 uuid;c uuid;c2 uuid;t timestamptz;b jsonb;batch jsonb;req uuid;at_start timestamptz=clock_timestamp();v_day date=(clock_timestamp() at time zone 'UTC')::date;begin
+ p=public.manage_page(null,'Phase 4 integrity fixture','',false);
+ insert into public.leads(page_id,business_name,phone,google_maps_url) values(p,'Rejected fixture','+12025550991','https://maps.google.com/?cid=phase4-retention') returning id,updated_at into l,t;
+ c=public.record_call(l,t,gen_random_uuid(),'not_interested','Remove these private notes on purge');
+ perform set_config('test.retention_id',l::text,true);
+ perform set_config('test.retention_change',c::text,true);
+ if not exists(select 1 from public.call_attempts where lead_id=l and occurred_at>=at_start and occurred_at<=clock_timestamp()) then raise exception 'Attempt timestamp not server accurate';end if;
+ if not exists(select 1 from public.leads where id=l and purge_after=rejected_at+interval '480 hours') then raise exception 'Rejected deadline wrong';end if;
+ insert into public.leads(page_id,business_name,phone) values(p,'Independent rejection','+1 (202) 555-0991') returning id,updated_at into l2,t;
+ perform public.save_lead(l2,t,'{"status":"not_interested"}');
+ select id into c2 from public.workflow_changes where lead_id=l2 order by sequence desc limit 1;
+ perform public.undo_workflow(c);
+ if not public.is_lead_suppressed(l) then raise exception 'Undo removed another rejection source';end if;
+ perform public.undo_workflow(c2);
+ if public.is_lead_suppressed(l) then raise exception 'All corrected sources should release the number';end if;
+ raise notice 'PASS: Accurate timestamps, exact 480-hour deadline and independent suppression sources';
+ select updated_at into t from public.leads where id=l;
+ c=public.record_call(l,t,gen_random_uuid(),'callback_requested','Callback',v_day+2,'10:00');
+ perform public.undo_workflow(c);
+ if exists(select 1 from public.followups where lead_id=l) or not exists(select 1 from public.leads where id=l and status='new' and last_contacted_at is null) then raise exception 'Callback undo did not remove schedule and restore contact time';end if;
+ select updated_at into t from public.leads where id=l;
+ c=public.record_call(l,t,gen_random_uuid(),'voicemail','Retry');
+ begin perform public.record_call(l,t,gen_random_uuid(),'interested');raise exception 'Stale attempt accepted';exception when serialization_failure then null;end;
+ select updated_at into t from public.leads where id=l;
+ perform public.save_lead(l,t,'{"notes":"Later edit"}');
+ begin perform public.undo_workflow(c);raise exception 'Out of order correction accepted';exception when raise_exception then if sqlerrm='Out of order correction accepted' then raise;end if;end;
+ select id into c2 from public.workflow_changes where lead_id=l and undone_at is null order by sequence desc limit 1;
+ perform public.undo_workflow(c2);perform public.undo_workflow(c);
+ raise notice 'PASS: Callback correction restores schedule/contact time; stale and out-of-order writes are blocked';
+ batch=public.commit_import(gen_random_uuid(),p,null,'append','callbacks.csv','[{"business_name":"Imported callback","status":"follow_up"}]',1,0);
+ if not exists(select 1 from public.followups where auto_from_import=(batch->>'id')::uuid and notes like 'Imported schedule:%') then raise exception 'Imported scheduled status orphaned';end if;
+ perform public.undo_import((batch->>'id')::uuid);
+ if exists(select 1 from public.leads where import_id=(batch->>'id')::uuid) then raise exception 'Untouched imported callback cannot be undone';end if;
+ raise notice 'PASS: CSV scheduled statuses get reviewable tasks and untouched import undo remains safe';
+ -- Set up the rejected and exhausted details for the privileged retention check below.
+ select updated_at into t from public.leads where id=l;
+ c=public.record_call(l,t,gen_random_uuid(),'not_interested','Private notes to purge');
+ perform set_config('test.retention_change',c::text,true);
+ insert into public.leads(page_id,business_name) values(p,'Exhausted fixture') returning id,updated_at into l2,t;
+ c=public.record_call(l2,t,gen_random_uuid(),'no_answer');select updated_at into t from public.leads where id=l2;
+ c=public.record_call(l2,t,gen_random_uuid(),'no_answer');select updated_at into t from public.leads where id=l2;
+ c=public.record_call(l2,t,gen_random_uuid(),'voicemail');
+ perform set_config('test.exhausted_id',l2::text,true);
+ begin perform public.undo_workflow('ffffffff-ffff-4fff-8fff-ffffffffffff');raise exception 'Missing correction accepted';exception when insufficient_privilege then null;end;
+ begin perform public.manage_followup(l2,t,gen_random_uuid(),null,'schedule',v_day,null,'');raise exception 'Archived scheduling accepted';exception when serialization_failure then null;when raise_exception then if sqlerrm='Archived scheduling accepted' then raise;end if;end;
+ raise notice 'PASS: Archived scheduling and nonexistent correction requests are rejected';
+end $$;
+reset role;
+do $$declare l uuid=current_setting('test.retention_id')::uuid;c uuid=current_setting('test.retention_change')::uuid;n bigint;v_day date=(clock_timestamp() at time zone 'UTC')::date;before_calls bigint;begin
+ select calls_made into before_calls from public.daily_activity(v_day);
+ perform set_config('folio.undo_id',c::text,true);
+ update public.leads set rejected_at=clock_timestamp()-interval '21 days',archived_at=clock_timestamp()-interval '21 days',purge_after=clock_timestamp()-interval '1 day' where id=l;
+ perform set_config('folio.undo_id','',true);
+ n=private.purge_rejected_leads(500);
+ if exists(select 1 from public.leads where id=l) or exists(select 1 from public.call_attempts where lead_id=l) or exists(select 1 from public.followups where lead_id=l) or exists(select 1 from public.workflow_changes where lead_id=l) then raise exception 'Business detail or undo snapshot survived purge';end if;
+ if not exists(select 1 from public.leads where id=current_setting('test.exhausted_id')::uuid and archive_reason='attempts_exhausted' and purge_after is null) then raise exception 'Exhausted detail wrongly purged';end if;
+ if (select calls_made from public.daily_activity(v_day))<>before_calls then raise exception 'Purge damaged historical call counts';end if;
+ if not exists(select 1 from public.activity_events where kind='call_attempt' and lead_id is null and owner_id=auth.uid()) or not exists(select 1 from public.outreach_suppressions where owner_id=auth.uid()) then raise exception 'Historical fact or suppression lost';end if;
+ raise notice 'PASS: Expired rejection removes PII/history snapshots while retaining anonymous counts and DNC; Exhausted survives';
+end $$;
+set local role authenticated;
+do $$declare p uuid;l uuid;t timestamptz;begin
+ p=public.manage_page(null,'Phase 4 post-purge fixture','',false);
+ insert into public.leads(page_id,business_name,phone) values(p,'Retained matching phone','+1 202 555 0991') returning id,updated_at into l,t;
+ if not public.is_lead_suppressed(l) then raise exception 'Suppression lost after detail purge';end if;
+ begin perform public.record_call(l,t,gen_random_uuid(),'no_answer');raise exception 'Post-purge DNC bypass';exception when insufficient_privilege then null;end;
+ raise notice 'PASS: Post-purge reimport remains a lead and is blocked from outreach';
+end $$;
+reset role;
+select json_build_object('suite','workflow-integrity','passed',true,'fixtures','transaction rollback') as verification;
+rollback;
+

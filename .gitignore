@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*
+!.env.example
+.local-postgres/
+.local-test-output/
+supabase/.temp/
+test-results/

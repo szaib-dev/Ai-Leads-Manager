@@ -1,0 +1,232 @@
+"use client";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { fetchWorkspaceState, managePage } from "@/lib/leads/actions";
+import type { PageWithCounts } from "@/lib/leads/contracts";
+import { createClient } from "@/lib/supabase/browser";
+import { startWorkspaceSync, type SyncStatus } from "@/lib/realtime/controller";
+import { supabaseSyncTransport } from "@/lib/realtime/supabase-transport";
+import { DEFAULT_TIMEZONE, validTimeZone } from "@/lib/analytics/contracts";
+interface Workspace {
+  aiSelection: { pageId?: string; ids: string[] };
+  toggleAiLead: (id: string, pageId?: string) => void;
+  clearAiSelection: () => void;
+  recentAiImport: string | undefined;
+  setRecentAiImport: (id: string | undefined) => void;
+  pages: PageWithCounts[];
+  revision: number;
+  privacyEpoch: number;
+  canFetch: boolean;
+  syncStatus: SyncStatus;
+  retrySync: () => void;
+  timezone: string;
+  setTimezone: (zone: string) => void;
+  refreshPages: () => Promise<void>;
+  createPage: (name: string, description: string) => Promise<boolean>;
+  toast: (message: string) => void;
+}
+const Context = createContext<Workspace | null>(null);
+export function useWorkspace() {
+  const value = useContext(Context);
+  if (!value) throw new Error("Workspace provider missing");
+  return value;
+}
+export function Providers({
+  children,
+  initialRealPages,
+  ownerId,
+  initialRevision,
+}: {
+  children: ReactNode;
+  initialRealPages: PageWithCounts[];
+  ownerId: string;
+  initialRevision: number;
+}) {
+  const [pages, setPages] = useState(initialRealPages),
+    [revision, setRevision] = useState(0),
+    [privacyEpoch, setPrivacyEpoch] = useState(0),
+    [canFetch, setCanFetch] = useState(true),
+    [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting"),
+    [timezone, setZone] = useState<string>(DEFAULT_TIMEZONE),
+    [notice, setNotice] = useState("");
+  const [aiSelectionState, setAiSelectionState] = useState<{
+    epoch: number;
+    pageId?: string;
+    ids: string[];
+  }>({ epoch: 0, ids: [] });
+  const [recentAiImport, setRecentAiImport] = useState<string>();
+  const aiSelection =
+    aiSelectionState.epoch === privacyEpoch && canFetch
+      ? aiSelectionState
+      : { ids: [] };
+  function toggleAiLead(id: string, pageId?: string) {
+    setAiSelectionState((s) => {
+      const ids = s.epoch === privacyEpoch && s.pageId === pageId ? s.ids : [];
+      return {
+        epoch: privacyEpoch,
+        pageId,
+        ids: ids.includes(id)
+          ? ids.filter((x) => x !== id)
+          : [...ids, id].slice(0, 10000),
+      };
+    });
+  }
+  const controller = useRef<ReturnType<typeof startWorkspaceSync> | null>(null),
+    flight = useRef<Promise<void> | null>(null),
+    again = useRef(false),
+    mounted = useRef(false),
+    initialCheckpoint = useRef(initialRevision);
+  const refreshPages = useCallback<() => Promise<void>>(async () => {
+    if (flight.current) {
+      again.current = true;
+      return flight.current;
+    }
+    const job = (async () => {
+      do {
+        again.current = false;
+        setRevision((v) => v + 1);
+        const r = await fetchWorkspaceState();
+        if (!r.data) throw new Error(r.error);
+        if (mounted.current) {
+          setPages(r.data.pages);
+          controller.current?.acknowledge(r.data.revision);
+        }
+      } while (again.current && mounted.current);
+    })();
+    flight.current = job;
+    try {
+      await job;
+    } finally {
+      flight.current = null;
+    }
+  }, []);
+  const toast = useCallback((message: string) => setNotice(message), []);
+  const setTimezone = useCallback((zone: string) => {
+    if (!validTimeZone(zone)) return;
+    setZone(zone);
+    try {
+      localStorage.setItem("folio.timezone", zone);
+    } catch {
+      /* Preferences are optional when browser storage is disabled. */
+    }
+  }, []);
+  useEffect(() => {
+    mounted.current = true;
+    try {
+      const zone = localStorage.getItem("folio.timezone");
+      if (zone && validTimeZone(zone)) queueMicrotask(() => setZone(zone));
+    } catch {}
+    const client = createClient();
+    const sync = startWorkspaceSync(
+      supabaseSyncTransport(client, ownerId),
+      () => {
+        setPrivacyEpoch((v) => v + 1);
+        void refreshPages().catch(() => setSyncStatus("stale"));
+      },
+      (status) => {
+        setSyncStatus(
+          status !== "signed-out" && !navigator.onLine ? "offline" : status,
+        );
+        if (
+          status === "live" &&
+          navigator.onLine &&
+          document.visibilityState === "visible"
+        )
+          setCanFetch(true);
+        if (status === "signed-out") {
+          setCanFetch(false);
+          setPrivacyEpoch((v) => v + 1);
+          setPages([]);
+        }
+      },
+    );
+    controller.current = sync;
+    sync.acknowledge(initialCheckpoint.current);
+    function availability() {
+      const online = navigator.onLine,
+        visible = document.visibilityState === "visible";
+      setCanFetch(online && visible);
+      if (!online) {
+        sync.pause();
+        setSyncStatus("offline");
+        setPrivacyEpoch((v) => v + 1);
+      } else if (!visible) {
+        sync.pause();
+        setPrivacyEpoch((v) => v + 1);
+      } else {
+        sync.resume();
+      }
+    }
+    function online() {
+      availability();
+      if (navigator.onLine) sync.reconnect();
+    }
+    document.addEventListener("visibilitychange", availability);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", availability);
+    availability();
+    return () => {
+      mounted.current = false;
+      sync.stop();
+      controller.current = null;
+      document.removeEventListener("visibilitychange", availability);
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", availability);
+    };
+  }, [ownerId, refreshPages]);
+  async function createPage(name: string, description: string) {
+    const r = await managePage({ name, description });
+    if (r.error) {
+      toast(r.error);
+      return false;
+    }
+    await refreshPages();
+    toast("Lead page created");
+    return true;
+  }
+  return (
+    <Context.Provider
+      value={{
+        aiSelection,
+        toggleAiLead,
+        clearAiSelection: () =>
+          setAiSelectionState({ epoch: privacyEpoch, ids: [] }),
+        recentAiImport,
+        setRecentAiImport,
+        pages,
+        revision,
+        privacyEpoch,
+        canFetch,
+        syncStatus,
+        timezone,
+        setTimezone,
+        retrySync: () => controller.current?.reconnect(),
+        refreshPages,
+        createPage,
+        toast,
+      }}
+    >
+      {children}
+      <div className="toast-region" aria-live="polite">
+        {notice && (
+          <div className="toast">
+            <span>{notice}</span>
+            <button
+              onClick={() => setNotice("")}
+              aria-label="Dismiss notification"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+    </Context.Provider>
+  );
+}

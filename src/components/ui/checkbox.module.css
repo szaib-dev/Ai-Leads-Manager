@@ -1,0 +1,32 @@
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px;
+  display: inline-block !important;
+  vertical-align: middle;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.checkbox:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m5 10 3 3 7-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
