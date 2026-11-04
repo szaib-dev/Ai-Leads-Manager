@@ -3,7 +3,8 @@ import { MapsButton } from "./maps-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { useLiveSelection } from "@/lib/realtime/use-live-selection";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSessionLeadView } from "./use-session-lead-view";
 import { formatMoment, dayInZone } from "@/lib/analytics/contracts";
 import Link from "next/link";
 import {
@@ -66,6 +67,7 @@ export function LeadWorkspace({
   mode?: "page" | "attempts" | "archive";
 }) {
   const {
+    ownerId,
     pages,
     refreshPages,
     toast,
@@ -75,8 +77,11 @@ export function LeadWorkspace({
     toggleAiLead,
     clearAiSelection,
   } = useWorkspace();
-  const [desktop, setDesktop] = useState<Filters>(freshFilters);
-  const [mobile, setMobile] = useState<Filters>(freshFilters);
+  const viewKey = `folio.lead-view:${ownerId}:${mode}:${pageId ?? "all"}`;
+  const desktopView = useSessionLeadView(`${viewKey}:desktop`, freshFilters);
+  const mobileView = useSessionLeadView(`${viewKey}:mobile`, freshFilters);
+  const { filters: desktop, setFilters: setDesktop } = desktopView;
+  const { filters: mobile, setFilters: setMobile } = mobileView;
   const [selected, setSelected] = useLiveSelection<Lead | null>(null);
   const [attemptId, setAttemptId] = useLiveSelection<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -106,28 +111,31 @@ export function LeadWorkspace({
     !mobileLayout &&
     !desktopRemote.loading &&
     !desktopRemote.error &&
-    desktop.page > Math.max(1, Math.ceil(desktopRemote.data.total / 8))
+    desktop.page > Math.max(1, Math.ceil(desktopRemote.data.total / 15))
   )
     setDesktop((f) => ({
       ...f,
-      page: Math.max(1, Math.ceil(desktopRemote.data.total / 8)),
+      page: Math.max(1, Math.ceil(desktopRemote.data.total / 15)),
     }));
   if (
     mobileLayout &&
     !mobileRemote.loading &&
     !mobileRemote.error &&
-    mobile.page > Math.max(1, Math.ceil(mobileRemote.data.total / 8))
+    mobile.page > Math.max(1, Math.ceil(mobileRemote.data.total / 15))
   )
     setMobile((f) => ({
       ...f,
-      page: Math.max(1, Math.ceil(mobileRemote.data.total / 8)),
+      page: Math.max(1, Math.ceil(mobileRemote.data.total / 15)),
     }));
   const activeRemote = mobileLayout ? mobileRemote : desktopRemote;
+  useEffect(() => {
+    (mobileLayout ? mobileView : desktopView).restoreScroll(
+      !activeRemote.loading,
+    );
+  });
   const summaryReady = !activeRemote.loading && !activeRemote.error;
   const summary = activeRemote.data.summary;
   function refresh() {
-    setDesktop((f) => ({ ...f, page: 1 }));
-    setMobile((f) => ({ ...f, page: 1 }));
     setVersion((v) => v + 1);
     void refreshPages().catch(() => toast("Page counts could not refresh."));
   }
@@ -172,7 +180,7 @@ export function LeadWorkspace({
     }
     const remote = isMobile ? mobileRemote : desktopRemote;
     const total = remote.data.total;
-    const pageCount = Math.max(1, Math.ceil(total / 8));
+    const pageCount = Math.max(1, Math.ceil(total / 15));
     const currentPage = filters.page;
     const shown = remote.data.rows;
     const active =
@@ -568,7 +576,7 @@ export function LeadWorkspace({
         <div className="pagination">
           <span>
             {total
-              ? `${(currentPage - 1) * 8 + 1}–${Math.min(currentPage * 8, total)} of ${total} leads`
+              ? `${(currentPage - 1) * 15 + 1}–${Math.min(currentPage * 15, total)} of ${total} leads`
               : "0 leads"}
           </span>
           <div>

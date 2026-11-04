@@ -15,7 +15,6 @@
 }
 .controls [data-slot="select-trigger"],
 .controls input {
-  display: block;
   width: 100%;
   min-width: 0;
   max-width: 100%;

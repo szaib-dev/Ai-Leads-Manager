@@ -82,6 +82,7 @@ export function Select({
       <Primitive.Portal>
         <Primitive.Content
           position="popper"
+          align="start"
           sideOffset={5}
           collisionPadding={12}
           className={styles.content}

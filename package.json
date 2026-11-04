@@ -11,11 +11,11 @@
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/unit/*.test.ts",
+    "test": "node scripts/test.mjs",
     "test:auth-ui": "node tests/fixtures/auth-ui.mjs",
     "test:routes": "node tests/route-protection.mjs",
     "ai:configure": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/configure-ai.mjs",
-    "test:ai": "node --conditions=react-server --import tsx --test tests/ai-provider.test.ts"
+    "test:ai": "node --conditions=react-server --import tsx --test tests/ai-provider.test.ts tests/ai-stream.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.3.1",
@@ -32,11 +32,14 @@
     "papaparse": "^5.7.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.4",
     "@types/node": "^26.6.6",
     "@types/papaparse": "^5.5.2",

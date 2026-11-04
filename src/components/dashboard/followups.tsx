@@ -43,7 +43,7 @@ const emptyDescriptions: Record<FollowupCategory | "all", string> = {
     "Record an outcome to move a follow-up here. Completed tasks stay available for reference.",
 };
 export function Followups() {
-  const { pages, revision, refreshPages, toast, timezone } = useWorkspace();
+  const { pages, refreshPages, toast, timezone } = useWorkspace();
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [optimisticComplete, setOptimisticComplete] = useLiveSelection<
@@ -59,7 +59,7 @@ export function Followups() {
   const [selectedId, setSelectedId] = useLiveSelection<string | null>(null);
   const [attemptId, setAttemptId] = useLiveSelection<string | null>(null);
   const [rescheduleId, setRescheduleId] = useLiveSelection<string | null>(null);
-  const q = useQuery(JSON.stringify([today, tab, sort, page, revision]), () =>
+  const q = useQuery(JSON.stringify([today, tab, sort, page]), () =>
     fetchFollowups(today, tab, sort, page),
   );
   if (!q.loading && q.data && page > Math.max(1, Math.ceil(q.data.total / 20)))

@@ -6,8 +6,8 @@ export function useQuery<T>(
   queryKey: string,
   load: () => Promise<ActionResult<T>>,
 ) {
-  const { revision, canFetch } = useWorkspace();
-  const key = JSON.stringify([queryKey, revision]);
+  const { revision, privacyEpoch, canFetch } = useWorkspace();
+  const key = JSON.stringify([queryKey, privacyEpoch]);
   const [version, setVersion] = useState(0);
   const [state, setState] = useState<{
     key: string;
@@ -38,11 +38,14 @@ export function useQuery<T>(
     };
     // Serialized query keys contain every argument. The workspace revision invalidates only mounted queries.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, version, canFetch]);
+  }, [key, version, revision, canFetch]);
   return {
     data: canFetch && state.key === key ? state.data : undefined,
     error: canFetch && state.key === key ? state.error : undefined,
-    loading: !canFetch || state.key !== key || state.version !== version,
+    loading:
+      !canFetch ||
+      state.key !== key ||
+      (state.data === undefined && state.error === undefined),
     retry: () => setVersion((v) => v + 1),
   };
 }

@@ -214,6 +214,8 @@ export interface AssistantState {
     configured: boolean;
     model: string;
     pricing_verified: string;
+    input_tokens?: number;
+    output_tokens?: number;
   };
   history: {
     id: string;

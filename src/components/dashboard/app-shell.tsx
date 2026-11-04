@@ -1,18 +1,15 @@
 "use client";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SyncIndicator } from "@/components/shared/sync-indicator";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useState, type ReactNode } from "react";
 import {
-  ArrowUpRight,
   Archive,
   CalendarClock,
   ChartNoAxesCombined,
   ChevronDown,
   ChevronRight,
-  CircleHelp,
   Folder,
   History,
   LayoutDashboard,
@@ -27,12 +24,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -40,10 +31,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "@/components/providers";
 import { SignOutItem } from "@/components/auth/sign-out-item";
-const AiAssistant = dynamic(
-  () => import("@/components/ai/assistant").then((m) => m.AiAssistant),
-  { ssr: false },
-);
 const nav = [
   { href: "/dash", label: "Overview", icon: LayoutDashboard },
   { href: "/dash/pages", label: "Lead pages", icon: Folder },
@@ -51,19 +38,19 @@ const nav = [
   { href: "/dash/followups", label: "Follow-ups", icon: CalendarClock },
   { href: "/dash/activity", label: "Activity", icon: History },
   { href: "/dash/archive", label: "Archive", icon: Archive },
+  { href: "/dash/ai", label: "AI workspace", icon: Sparkles },
 ];
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { theme, setTheme } = useTheme();
   const { pages } = useWorkspace();
   const [collapsed, setCollapsed] = useState(false);
-  const [assistant, setAssistant] = useState(false);
-  const [assistantStarted, setAssistantStarted] = useState(false);
+  const router = useRouter();
+  const isAi = path === "/dash/ai";
   function openAssistant() {
-    setAssistantStarted(true);
-    setAssistant(true);
+    const activePage = pages.find((p) => path === `/dash/pages/${p.id}`);
+    router.push(activePage ? `/dash/ai?page=${activePage.id}` : "/dash/ai");
   }
-  const [help, setHelp] = useState(false);
   const current = nav.find((n) => n.href === path) ?? nav[1];
   const page = pages.find((p) => path === `/dash/pages/${p.id}`);
   const followups = pages.reduce(
@@ -132,24 +119,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </div>
         <div className="sidebar-bottom">
-          <button className="assistant-card" onClick={() => openAssistant()}>
-            <span className="assistant-icon">
-              <Sparkles size={19} />
-            </span>
-            <strong>A little help. A lot of potential.</strong>
-            <span>Manage your leads with AI.</span>
-            <span className="coming-label">
-              OPEN ASSISTANT <ArrowUpRight size={12} />
-            </span>
-          </button>
-          <button
-            className="nav-item"
-            aria-label="Help & information"
-            onClick={() => setHelp(true)}
-          >
-            <CircleHelp size={19} />
-            <span>Help & information</span>
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -160,7 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="profile-avatar">SB</span>
                 <div>
                   <strong>Personal account</strong>
-                  <span>Local demo workspace</span>
+                  <span>Private workspace</span>
                 </div>
                 <span className="online-dot" />
               </button>
@@ -243,15 +212,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="header-avatar">SB</span>
           </div>
         </header>
-        <main id="main-content" className="main-content">
+        <main
+          id="main-content"
+          className={isAi ? "main-content ai-main-content" : "main-content"}
+        >
           {children}
-          <footer className="content-footer">
-            <span>
-              <span className="online-dot" />A little more organized. A little
-              more connected.
-            </span>
-            <span>Supabase · Live workspace · Phase 05</span>
-          </footer>
+          {!isAi && (
+            <footer className="content-footer">
+              <span>
+                <span className="online-dot" />A little more organized. A little
+                more connected.
+              </span>
+              <span>Supabase · Live workspace · Phase 05</span>
+            </footer>
+          )}
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Mobile navigation">
@@ -300,38 +274,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Sparkles size={16} />
               AI assistant
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setHelp(true)}>
-              <CircleHelp size={16} />
-              Help & information
-            </DropdownMenuItem>
             <SignOutItem />
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
-      {assistantStarted && (
-        <AiAssistant
-          open={assistant}
-          onClose={() => setAssistant(false)}
-          pageId={page?.id}
-        />
-      )}
-      <Dialog open={help} onOpenChange={setHelp}>
-        <DialogContent>
-          <DialogTitle>A workspace for better conversations.</DialogTitle>
-          <DialogDescription>
-            Lead pages, CSV imports, notes and lead editing are saved to your
-            private Supabase workspace. Calling and follow-ups are saved in
-            Supabase. The AI assistant manages existing records with
-            configurable approvals.
-          </DialogDescription>
-          <div className="info-box">
-            Lead filters are temporary and separate on mobile and desktop.
-            Import history supports safe undo. Calling history and AI actions
-            use authenticated database operations.
-          </div>
-          <Button onClick={() => setHelp(false)}>Got it</Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

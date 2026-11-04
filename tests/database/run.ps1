@@ -19,7 +19,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Scratch database creation failed' }
   $migrations = @(Get-ChildItem (Join-Path $workspace 'supabase/migrations/*.sql') | Sort-Object Name)
   # Verify the Phase 2/3 grants as they existed, then test the stricter Phase 4 RPC-only workflows.
-  $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | Where-Object Name -LT '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'security.sql'),(Join-Path $PSScriptRoot 'imports.sql')) + @($migrations | Where-Object Name -GE '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'workflows.sql'),(Join-Path $PSScriptRoot 'workflow-integrity.sql'),(Join-Path $PSScriptRoot 'analytics.sql'),(Join-Path $PSScriptRoot 'ai-mapping.sql'),(Join-Path $PSScriptRoot 'assistant.sql'),(Join-Path $PSScriptRoot 'assistant-safety.sql'))
+  $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | Where-Object Name -LT '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'security.sql'),(Join-Path $PSScriptRoot 'imports.sql')) + @($migrations | Where-Object Name -GE '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'workflows.sql'),(Join-Path $PSScriptRoot 'workflow-integrity.sql'),(Join-Path $PSScriptRoot 'analytics.sql'),(Join-Path $PSScriptRoot 'ai-mapping.sql'),(Join-Path $PSScriptRoot 'assistant.sql'),(Join-Path $PSScriptRoot 'assistant-safety.sql'),(Join-Path $PSScriptRoot 'chat.sql'))
   foreach ($file in $files) {
     & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f $file
     if ($LASTEXITCODE -ne 0) { throw "SQL check failed: $file" }

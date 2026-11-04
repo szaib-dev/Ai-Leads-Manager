@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ComponentProps } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import type { Lead } from "@/types";
 import { phoneLink } from "@/lib/utils";
 import { authorizeCall } from "@/lib/workflows/actions";
@@ -13,6 +13,7 @@ export function SafeCallLink({
 }: ComponentProps<"a"> & { lead: Lead }) {
   const { toast } = useWorkspace();
   const [busy, setBusy] = useState(false);
+  const calling = useRef(false);
   const blocked = lead.suppressed || lead.archived || !phoneLink(lead.phone);
   return (
     <a
@@ -30,19 +31,23 @@ export function SafeCallLink({
           );
           return;
         }
-        if (busy) return;
+        if (calling.current) return;
+        calling.current = true;
         setBusy(true);
         try {
           const r = await authorizeCall(lead.id);
           if (r.error) toast(r.error);
           else {
             const tel = phoneLink(r.data!);
-            if (tel) window.location.assign(tel);
-            else toast("No valid phone number.");
+            if (tel) {
+              window.dispatchEvent(new Event("folio:view-checkpoint"));
+              window.location.assign(tel);
+            } else toast("No valid phone number.");
           }
         } catch {
           toast("Could not verify do-not-call protection. Please retry.");
         } finally {
+          calling.current = false;
           setBusy(false);
         }
       }}

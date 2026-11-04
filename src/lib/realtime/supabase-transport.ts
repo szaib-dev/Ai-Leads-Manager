@@ -4,15 +4,24 @@ import type { SyncTransport, SyncStatus } from "./controller";
 export function supabaseSyncTransport(
   client: SupabaseClient<Database>,
   ownerId: string,
+  onPrivacyChange?: () => void,
 ): SyncTransport {
+  let privacyRevision: number | undefined;
+  function privacy(row: Record<string, unknown>) {
+    const next = Number(row.privacy_revision ?? 0);
+    if (privacyRevision !== undefined && next > privacyRevision)
+      onPrivacyChange?.();
+    privacyRevision = next;
+  }
   return {
     async readRevision() {
       const r = await client
         .from("workspace_sync")
-        .select("revision")
+        .select("revision,privacy_revision")
         .eq("owner_id", ownerId)
         .maybeSingle();
       if (r.error) throw new Error("Could not check for updates");
+      if (r.data) privacy(r.data);
       return Number(r.data?.revision ?? 0);
     },
     connect(onRevision, onStatus) {
@@ -20,6 +29,7 @@ export function supabaseSyncTransport(
         channel: RealtimeChannel | null = null;
       function revision(payload: { new: Record<string, unknown> }) {
         if (!stopped && payload.new.owner_id === ownerId) {
+          privacy(payload.new);
           const value = Number(payload.new.revision);
           if (Number.isSafeInteger(value) && value >= 0) onRevision(value);
         }

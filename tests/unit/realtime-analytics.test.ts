@@ -135,7 +135,7 @@ test("sync reconnect reconciles lost changes and pause/resume avoids hidden read
   await wait();
   assert.equal(connections, 2);
   assert.equal(closed, 1);
-  assert.equal(changes, 3);
+  assert.equal(changes, 2);
   c.stop();
   assert.equal(closed, 2);
 });
@@ -270,4 +270,40 @@ test("Supabase adapter creates one owner-filtered channel, refreshes auth, and c
   auth("SIGNED_IN", { access_token: "late-test-token", user: { id: "owner" } });
   await wait();
   assert.equal(subscriptions, 1);
+});
+
+test("dialer resume does not invalidate an unchanged workspace, but delivers changes received while hidden", async () => {
+  let event!: (v: number) => void;
+  let revision = 7,
+    changes = 0;
+  const sync = startWorkspaceSync(
+    {
+      connect(e) {
+        event = e;
+        return () => {};
+      },
+      async readRevision() {
+        return revision;
+      },
+    },
+    () => changes++,
+    () => {},
+    { batchMs: 5, pollMs: 10000 },
+  );
+  sync.acknowledge(7);
+  sync.pause();
+  sync.resume();
+  await wait();
+  assert.equal(changes, 0);
+  sync.pause();
+  event(8);
+  revision = 8;
+  sync.resume();
+  await wait();
+  assert.equal(changes, 1);
+  sync.pause();
+  sync.resume();
+  await wait();
+  assert.equal(changes, 1);
+  sync.stop();
 });

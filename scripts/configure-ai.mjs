@@ -16,18 +16,18 @@ const hash = createHash("sha256")
 const budget = Number(process.env.AI_MONTHLY_BUDGET_USD ?? 1.75),
   input = Number(process.env.AI_INPUT_USD_PER_MILLION ?? 0.3),
   output = Number(process.env.AI_OUTPUT_USD_PER_MILLION ?? 1.2),
-  date = process.env.AI_PRICING_VERIFIED_DATE ?? "2026-11-04";
+  date = process.env.AI_PRICING_VERIFIED_DATE;
 if (
   ![budget, input, output].every((n) => Number.isFinite(n) && n > 0) ||
   budget > 2 ||
-  !/^\d{4}-\d{2}-\d{2}$/.test(date)
+  (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
 )
-  throw new Error("Invalid budget/pricing configuration.");
+  throw new Error("Invalid budget/pricing configuration. Set AI_PRICING_VERIFIED_DATE to the date you actually reviewed provider pricing.");
 mkdirSync(".local-test-output", { recursive: true });
 const path = ".local-test-output/configure-ai.sql";
 writeFileSync(
   path,
-  `update private.ai_runtime set server_token_hash=decode('${hash}','hex'),monthly_budget=${budget},input_rate=${input},output_rate=${output},pricing_verified='${date}'::date where singleton;`,
+  `update private.ai_runtime set server_token_hash=decode('${hash}','hex'),monthly_budget=${budget},input_rate=${input},output_rate=${output},pricing_verified='${date}'::date,pricing_reviewed_at='${date}'::timestamp at time zone 'Asia/Karachi' where singleton;`,
 );
 try {
   const r = spawnSync(

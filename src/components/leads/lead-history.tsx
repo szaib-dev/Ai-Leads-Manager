@@ -13,12 +13,12 @@ export function LeadHistory({
   leadId: string;
   onChanged: () => void;
 }) {
-  const { revision, refreshPages, toast, timezone } = useWorkspace();
+  const { refreshPages, toast, timezone } = useWorkspace();
   const [page, setPage] = useState(1),
     [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const q = useQuery(JSON.stringify([leadId, page, revision]), () =>
+  const q = useQuery(JSON.stringify([leadId, page]), () =>
     fetchLeadHistory(leadId, page),
   );
   return (

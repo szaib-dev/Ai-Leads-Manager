@@ -108,8 +108,8 @@ export async function fetchLeads(
       p_status: statusToDb[p.status] || p.status,
       p_phone: p.phoneOnly,
       p_sort: p.sort,
-      p_offset: (p.page - 1) * 8,
-      p_limit: 8,
+      p_offset: (p.page - 1) * 15,
+      p_limit: 15,
     })) as unknown as Omit<LeadResult, "rows"> & {
       rows: Record<string, unknown>[];
     };

@@ -23,7 +23,7 @@ do $$declare p uuid;l uuid;stamp timestamptz;op uuid;r jsonb;n integer;begin
  op=gen_random_uuid();perform public.ai_csv_reserve(op,2000,'fixture-server-proof');
  begin perform public.ai_csv_reserve(op,2000,'fixture-server-proof');raise exception 'Repeated reservation accepted';exception when raise_exception then if sqlerrm='Repeated reservation accepted' then raise;end if;end;
  begin perform public.ai_csv_settle(op,0,0,'forged-proof');raise exception 'Forged usage settlement accepted';exception when raise_exception then if sqlerrm='Forged usage settlement accepted' then raise;end if;end;
- begin perform public.ai_csv_settle(op,500,513,'fixture-server-proof');raise exception 'Output cap ignored';exception when raise_exception then if sqlerrm='Output cap ignored' then raise;end if;end;
+ begin perform public.ai_csv_settle(op,500,1025,'fixture-server-proof');raise exception 'Output cap ignored';exception when raise_exception then if sqlerrm='Output cap ignored' then raise;end if;end;
  perform public.ai_csv_settle(op,500,40,'fixture-server-proof');perform public.ai_csv_settle(op,500,40,'fixture-server-proof');
  if (public.ai_csv_status()->>'estimated_spent')::numeric<>current_setting('test.ai_baseline')::numeric+0.000198 then raise exception 'Cost settlement incorrect';end if;
  perform set_config('request.jwt.claim.sub','82000000-0000-4000-8000-000000000008',true);

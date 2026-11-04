@@ -21,12 +21,12 @@ import { AnalyticsControls } from "@/components/analytics/analytics-controls";
 import { PerformanceMetrics } from "@/components/analytics/performance-metrics";
 import type { Lead } from "@/types";
 export function ActivityPage() {
-  const { revision, refreshPages, toast, timezone } = useWorkspace();
+  const { refreshPages, toast, timezone } = useWorkspace();
   const filters = useAnalyticsFilters();
   const [page, setPage] = useState(1),
     [selected, setSelected] = useLiveSelection<Lead | null>(null),
     [attempt, setAttempt] = useLiveSelection<Lead | null>(null);
-  const q = useQuery(JSON.stringify([filters.filter, page, revision]), () =>
+  const q = useQuery(JSON.stringify([filters.filter, page]), () =>
     fetchActivityRange(filters.filter, page),
   );
   if (!q.loading && q.data && page > Math.max(1, Math.ceil(q.data.total / 20)))

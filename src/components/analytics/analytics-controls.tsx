@@ -1,13 +1,8 @@
 "use client";
 import { Select } from "@/components/ui/select";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { TimezoneSelect } from "./timezone-select";
 import { useWorkspace } from "@/components/providers";
-import {
-  commonTimezones,
-  validTimeZone,
-  type Period,
-} from "@/lib/analytics/contracts";
+import type { Period } from "@/lib/analytics/contracts";
 import type { useAnalyticsFilters } from "@/lib/analytics/use-filters";
 import styles from "./analytics.module.css";
 export function AnalyticsControls({
@@ -18,10 +13,6 @@ export function AnalyticsControls({
   onChanged?: () => void;
 }) {
   const { pages, timezone, setTimezone } = useWorkspace();
-  const options = [...commonTimezones];
-  const [customZone, setCustomZone] = useState(false),
-    [zoneInput, setZoneInput] = useState(""),
-    [zoneError, setZoneError] = useState("");
   return (
     <div className={styles.controls}>
       <label>
@@ -59,53 +50,14 @@ export function AnalyticsControls({
       </label>
       <label>
         Timezone
-        <Select
+        <TimezoneSelect
           value={timezone}
-          onValueChange={(value) => {
-            if (value === "__custom") {
-              setCustomZone(true);
-              return;
-            }
-            setTimezone(value);
-            setCustomZone(false);
+          onChange={(zone) => {
+            setTimezone(zone);
             onChanged?.();
           }}
-        >
-          {!options.some((z) => z === timezone) && <option>{timezone}</option>}
-          <option value="__custom">Other timezone…</option>
-          {options.map((zone) => (
-            <option key={zone}>{zone}</option>
-          ))}
-        </Select>
+        />
       </label>
-      {customZone && (
-        <label style={{ flexBasis: "100%" }}>
-          IANA timezone (for example, Australia/Sydney)
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              value={zoneInput}
-              onChange={(e) => setZoneInput(e.target.value)}
-              placeholder="Australia/Sydney"
-            />
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!validTimeZone(zoneInput)) {
-                  setZoneError("Enter a valid IANA timezone.");
-                  return;
-                }
-                setTimezone(zoneInput);
-                setCustomZone(false);
-                setZoneError("");
-                onChanged?.();
-              }}
-            >
-              Apply
-            </Button>
-          </div>
-          {zoneError && <span role="alert">{zoneError}</span>}
-        </label>
-      )}
       {state.period === "custom" && (
         <>
           <label>

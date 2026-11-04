@@ -12,6 +12,7 @@ export function DropdownMenuContent({
       <Menu.Content
         className="dropdown-content"
         sideOffset={6}
+        collisionPadding={12}
         align="end"
         {...props}
       >

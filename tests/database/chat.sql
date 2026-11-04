@@ -1,0 +1,37 @@
+begin;
+insert into auth.users(id) values('95000000-0000-4000-8000-000000000010'),('96000000-0000-4000-8000-000000000010');
+select set_config('request.jwt.claim.sub','95000000-0000-4000-8000-000000000010',true);
+update private.ai_runtime set server_token_hash=sha256(convert_to('fixture-server-proof','UTF8')),pricing_reviewed_at=clock_timestamp();
+set local role authenticated;
+do $$declare c uuid=gen_random_uuid();u uuid=gen_random_uuid();a uuid=gen_random_uuid();attempt uuid;r jsonb;p uuid;begin
+ p=public.manage_page(null,'Pakistan fixture','',false);
+ r=public.ai_chat_claim(c,u,a,'How many Pakistani leads do I have?',p);attempt=(r->>'attempt')::uuid;
+ if r->>'state'<>'claimed' then raise exception 'Initial claim failed';end if;
+ if public.ai_chat_claim(c,u,a,'How many Pakistani leads do I have?',p)->>'state'<>'busy' then raise exception 'Duplicate in-flight request accepted';end if;
+ if not public.ai_chat_finish(a,attempt,'Partial response','failed','Network interrupted',null,null) then raise exception 'Failed response not retained';end if;
+ r=public.ai_chat_claim(c,u,a,'How many Pakistani leads do I have?',p);attempt=(r->>'attempt')::uuid;
+ if r#>>'{message,content}'<>'Partial response' then raise exception 'Retry lost partial response';end if;
+ if (select count(*) from public.ai_chat_messages where conversation_id=c and role='user')<>1 then raise exception 'Retry duplicated user message';end if;
+ if not public.ai_chat_finish(a,attempt,'No matching leads.','completed',null,null,'fixture-server-proof') then raise exception 'Completion failed';end if;
+ if public.ai_chat_claim(c,u,a,'How many Pakistani leads do I have?',p)->>'state'<>'replay' then raise exception 'Completed retry not replayed';end if;
+ begin perform public.ai_chat_claim(c,u,a,'Delete all leads',p);raise exception 'Changed retry accepted';exception when raise_exception then if sqlerrm<>'Retry does not match the original message' then raise;end if;end;
+ r=public.ai_chat_claim(c,gen_random_uuid(),gen_random_uuid(),'What about those without phones?',p);
+ r=public.ai_chat_context(c,(select id from public.ai_chat_messages where conversation_id=c and status='processing'));
+ if jsonb_array_length(r->'recent')<>2 then raise exception 'Conversation memory missing prior turn';end if;
+ begin insert into public.ai_conversations(id)values(gen_random_uuid());raise exception 'Browser directly wrote chat';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub','96000000-0000-4000-8000-000000000010',true);
+ if exists(select 1 from public.ai_conversations where id=c) or exists(select 1 from public.ai_chat_messages where conversation_id=c) then raise exception 'Cross-owner chat exposed';end if;
+ begin perform public.ai_chat_claim(c,gen_random_uuid(),gen_random_uuid(),'Read private chat',null);raise exception 'Cross-owner claim accepted';exception when insufficient_privilege then null;end;
+ raise notice 'PASS: chat ownership/RLS, strict retry identity, single user message, in-flight lock, durable partials, completed replay and bounded memory';
+end $$;
+reset role;
+-- Karachi can be on tomorrow's calendar day while the database is still on today in UTC.
+update private.ai_runtime set pricing_reviewed_at=clock_timestamp();
+set local role authenticated;
+select set_config('request.jwt.claim.sub','95000000-0000-4000-8000-000000000010',true);
+select public.ai_csv_reserve(gen_random_uuid(),1000,'fixture-server-proof');
+reset role;
+update private.ai_runtime set pricing_reviewed_at=clock_timestamp()+interval '1 day';
+set local role authenticated;
+do $$begin begin perform public.ai_csv_reserve(gen_random_uuid(),1000,'fixture-server-proof');raise exception 'Future review accepted';exception when raise_exception then if sqlerrm<>'Review current provider pricing before enabling AI' then raise;end if;end;raise notice 'PASS: pricing timestamps accept a current review and reject a future review';end $$;
+rollback;

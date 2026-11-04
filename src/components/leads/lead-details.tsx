@@ -20,6 +20,7 @@ import { fetchLeadRecord } from "@/lib/workflows/actions";
 import { saveLead } from "@/lib/leads/actions";
 import { statusToDb } from "@/lib/leads/contracts";
 import { SafeCallLink } from "./safe-call-link";
+import { publishLead } from "@/lib/realtime/lead-updates";
 import { LeadHistory } from "./lead-history";
 export function LeadDetails({
   lead: initialLead,
@@ -41,6 +42,7 @@ export function LeadDetails({
     const r = await fetchLeadRecord(lead.id);
     if (!r.data) throw new Error(r.error);
     setLead(r.data);
+    publishLead(r.data);
     if (closeEdit) {
       setEditing(false);
       setStatus(r.data.status);
@@ -209,6 +211,21 @@ export function LeadDetails({
               setBusy(true);
               setError("");
               try {
+                const original = lead;
+                const optimistic: Lead = {
+                  ...lead,
+                  name: String(form.get("business_name")),
+                  phone: String(form.get("phone")),
+                  website: String(form.get("website_url")),
+                  country: String(form.get("country")),
+                  city: String(form.get("location")),
+                  status,
+                };
+                if (status === "Not Interested") {
+                  optimistic.archived = true;
+                  optimistic.suppressed = true;
+                }
+                publishLead(optimistic);
                 const result = await saveLead({
                   id: lead.id,
                   expected: lead.updatedAt!,
@@ -229,9 +246,12 @@ export function LeadDetails({
                       : {}),
                   },
                 });
-                if (result.error) setError(result.error);
-                else await reloadSaved();
+                if (result.error) {
+                  publishLead(original);
+                  setError(result.error);
+                } else await reloadSaved();
               } catch {
+                publishLead(lead);
                 setError("Could not save lead. Reload and try again.");
               } finally {
                 setBusy(false);

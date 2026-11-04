@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "@/components/providers";
+import { replaceLead, subscribeLeadChanges } from "@/lib/realtime/lead-updates";
 import { fetchLeads } from "@/lib/leads/actions";
 import type { LeadFilters, LeadResult } from "@/lib/leads/contracts";
 const empty: LeadResult = {
@@ -27,8 +28,8 @@ export function useRemoteLeads(
   enabled: boolean,
   version: number,
 ) {
-  const { canFetch } = useWorkspace();
-  const key = JSON.stringify([filters, pageId, mode, version]);
+  const { canFetch, privacyEpoch } = useWorkspace();
+  const key = JSON.stringify([filters, pageId, mode, privacyEpoch]);
   const [state, setState] = useState<{
     key: string;
     data: LeadResult;
@@ -44,7 +45,11 @@ export function useRemoteLeads(
         fetchLeads({ ...filters, pageId, mode })
           .then((r) => {
             if (active)
-              setState({ key, data: r.data || empty, error: r.error || "" });
+              setState((previous) => ({
+                key,
+                data: r.data || previous.data,
+                error: r.error || "",
+              }));
           })
           .catch(() => {
             if (active)
@@ -61,7 +66,25 @@ export function useRemoteLeads(
       active = false;
       clearTimeout(timer);
     };
-  }, [key, enabled, canFetch, filters, pageId, mode]);
+  }, [key, version, enabled, canFetch, filters, pageId, mode]);
+  useEffect(
+    () =>
+      subscribeLeadChanges((lead) => {
+        if (enabled && canFetch)
+          setState((current) =>
+            current.key === key
+              ? {
+                  ...current,
+                  data: {
+                    ...current.data,
+                    rows: replaceLead(current.data.rows, lead),
+                  },
+                }
+              : current,
+          );
+      }),
+    [key, enabled, canFetch],
+  );
   return {
     data: enabled && canFetch && state.key === key ? state.data : empty,
     error: state.key === key ? state.error : "",

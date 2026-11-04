@@ -29,10 +29,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 
 export function Overview() {
-  const { pages, revision, timezone } = useWorkspace();
+  const { pages, timezone } = useWorkspace();
   const filters = useAnalyticsFilters();
   const day = filters.range.to;
-  const q = useQuery(JSON.stringify([filters.filter, revision]), () =>
+  const q = useQuery(JSON.stringify([filters.filter]), () =>
     fetchAnalytics(filters.filter),
   );
   const data = q.data;

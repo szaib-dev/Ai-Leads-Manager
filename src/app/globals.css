@@ -3265,3 +3265,6 @@ small,
     font-size: 8px;
   }
 }
+/* Dedicated chat fills the shell without changing other dashboard layouts. */
+.main-content.ai-main-content {padding:0;max-width:none;height:calc(100dvh - 73px);overflow:hidden;}
+@media(max-width:767px){.main-content.ai-main-content{height:calc(100dvh - 61px - 67px - env(safe-area-inset-bottom));}}

@@ -15,7 +15,6 @@ export function startWorkspaceSync(
   { batchMs = 200, pollMs = 120000 } = {},
 ) {
   let transportStatus: SyncStatus = "connecting";
-  let connectedOnce = false;
   let stopped = false,
     active = true,
     seen = -1,
@@ -25,9 +24,9 @@ export function startWorkspaceSync(
   let disconnect: () => void = () => {};
   function notify(revision: number, force = false) {
     if (stopped || (!force && revision <= seen)) return;
-    seen = Math.max(seen, revision);
     pending = Math.max(pending, revision);
     if (!active) return;
+    seen = Math.max(seen, revision);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = undefined;
@@ -35,14 +34,14 @@ export function startWorkspaceSync(
       if (!stopped && active) onChange();
     }, batchMs);
   }
-  async function reconcile(force = false) {
+  async function reconcile() {
     if (stopped || !active) return;
     if (inFlight) return inFlight;
     inFlight = (async () => {
       try {
         const version = await transport.readRevision();
         if (!stopped && active) {
-          notify(version, force);
+          notify(version);
           if (transportStatus === "live") onStatus("live");
         }
       } catch {
@@ -64,8 +63,7 @@ export function startWorkspaceSync(
         transportStatus = status;
         onStatus(status);
         if (status === "live") {
-          void reconcile(connectedOnce);
-          connectedOnce = true;
+          void reconcile();
         }
       },
     );
@@ -91,9 +89,13 @@ export function startWorkspaceSync(
       }
     },
     resume() {
-      const wasPaused = !active;
       active = true;
-      void reconcile(wasPaused);
+      if (pending >= 0) {
+        const queued = pending;
+        seen = Math.min(seen, queued - 1);
+        notify(queued);
+      }
+      void reconcile();
     },
     reconnect() {
       if (!stopped) {

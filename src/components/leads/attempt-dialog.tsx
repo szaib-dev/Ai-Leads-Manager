@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { useWorkspace } from "@/components/providers";
-import { recordCall } from "@/lib/workflows/actions";
+import { publishLead } from "@/lib/realtime/lead-updates";
+import { fetchLeadRecord, recordCall } from "@/lib/workflows/actions";
 import {
   callOutcomes,
   outcomeLabels,
@@ -63,6 +64,31 @@ export function AttemptDialog({
             setBusy(true);
             setError("");
             try {
+              const failed = outcome === "no_answer" || outcome === "voicemail";
+              const optimistic: Lead = {
+                ...lead,
+                attempts: lead.attempts + 1,
+                failedAttempts: failed ? lead.failedAttempts + 1 : 0,
+                status:
+                  outcome === "callback_requested"
+                    ? "Follow-up"
+                    : outcome === "meeting_booked"
+                      ? "Meeting Booked"
+                      : outcome === "interested"
+                        ? "Interested"
+                        : outcome === "not_interested"
+                          ? "Not Interested"
+                          : outcome === "voicemail"
+                            ? "Voicemail"
+                            : outcome === "no_answer"
+                              ? "No Answer"
+                              : lead.status,
+              };
+              if (outcome === "not_interested") {
+                optimistic.archived = true;
+                optimistic.suppressed = true;
+              }
+              publishLead(optimistic);
               const r = await recordCall({
                 leadId: lead.id,
                 expected: lead.updatedAt!,
@@ -75,9 +101,13 @@ export function AttemptDialog({
                   : undefined,
                 followupId,
               });
-              if (r.error) setError(r.error);
-              else {
+              if (r.error) {
+                publishLead(lead);
+                setError(r.error);
+              } else {
                 toast("Call attempt recorded");
+                const fresh = await fetchLeadRecord(lead.id);
+                if (fresh.data) publishLead(fresh.data);
                 await refreshPages().catch(() =>
                   toast("Attempt saved. Reload to refresh counts."),
                 );
@@ -85,6 +115,7 @@ export function AttemptDialog({
                 onClose();
               }
             } catch {
+              publishLead(lead);
               setError(
                 "Could not confirm the result. Retry without closing this dialog; the request ID prevents double counting.",
               );

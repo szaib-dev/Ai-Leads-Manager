@@ -15,6 +15,7 @@ import { startWorkspaceSync, type SyncStatus } from "@/lib/realtime/controller";
 import { supabaseSyncTransport } from "@/lib/realtime/supabase-transport";
 import { DEFAULT_TIMEZONE, validTimeZone } from "@/lib/analytics/contracts";
 interface Workspace {
+  ownerId: string;
   aiSelection: { pageId?: string; ids: string[] };
   toggleAiLead: (id: string, pageId?: string) => void;
   clearAiSelection: () => void;
@@ -125,9 +126,10 @@ export function Providers({
     } catch {}
     const client = createClient();
     const sync = startWorkspaceSync(
-      supabaseSyncTransport(client, ownerId),
+      supabaseSyncTransport(client, ownerId, () =>
+        setPrivacyEpoch((v) => v + 1),
+      ),
       () => {
-        setPrivacyEpoch((v) => v + 1);
         void refreshPages().catch(() => setSyncStatus("stale"));
       },
       (status) => {
@@ -144,6 +146,11 @@ export function Providers({
           setCanFetch(false);
           setPrivacyEpoch((v) => v + 1);
           setPages([]);
+          try {
+            for (const key of Object.keys(sessionStorage))
+              if (key.startsWith(`folio.lead-view:${ownerId}:`))
+                sessionStorage.removeItem(key);
+          } catch {}
         }
       },
     );
@@ -152,14 +159,14 @@ export function Providers({
     function availability() {
       const online = navigator.onLine,
         visible = document.visibilityState === "visible";
-      setCanFetch(online && visible);
+      // The phone dialer hides this tab. Keep the view and private drafts mounted.
+      setCanFetch(online);
       if (!online) {
         sync.pause();
         setSyncStatus("offline");
         setPrivacyEpoch((v) => v + 1);
       } else if (!visible) {
         sync.pause();
-        setPrivacyEpoch((v) => v + 1);
       } else {
         sync.resume();
       }
@@ -194,6 +201,7 @@ export function Providers({
   return (
     <Context.Provider
       value={{
+        ownerId,
         aiSelection,
         toggleAiLead,
         clearAiSelection: () =>
