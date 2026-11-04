@@ -63,7 +63,9 @@ test("casual confirmations preserve an existing import instruction", () => {
     assert.equal(isFileConfirmation(text), true);
     assert.equal(fileWriteAllowed(text, history), true);
   }
-  for (const text of ["no", "not yet", "okay but wait", "don't do it"]) {
+  for (const text of ["no", "not yet", "okay but wait",
+    "okay explain this file first",
+    "yes create a different page called Canada", "don't do it"]) {
     assert.equal(isFileConfirmation(text), false);
   }
 });

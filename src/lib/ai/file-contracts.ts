@@ -53,12 +53,9 @@ export function validateFileMapping(
   return mapping;
 }
 export function isFileConfirmation(text: string) {
-  return (
-    /^(?:(?:hmm?|um|well)[ ,]+)?(?:yes|yeah|yep|yup|okay|ok|sure|please do|go ahead|do it|proceed|sounds good|that would be better)\b/i.test(
-      text.trim(),
-    ) &&
-    !/\b(?:not|never|don['’]?t|no|wait|cancel|stop|instead|but)\b/i.test(text)
-  );
+  // Only an affirmative reply can accept a saved plan. A new question or
+  // changed instruction must go through normal planning instead.
+  return /^(?:(?:hmm?|um|well)[ ,]+)?(?:yes|yeah|yep|yup|okay|ok|sure|please do|go ahead|do it|proceed|sounds good|that would be better)(?:[ ,.!]+(?:please|thanks|thank you|that would be better|that['’]s better|sounds good|go ahead|do it))*[ .!]*$/i.test(text.trim());
 }
 export function fileWriteAllowed(
   text: string,
