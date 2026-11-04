@@ -15,7 +15,9 @@ export function useSessionLeadView(key: string, initial: LeadFilters) {
   const loaded = useRef(false),
     restoredScroll = useRef<number | null>(null);
   const current = useRef(filters);
+  const restoring = useRef<LeadFilters | null>(null);
   useEffect(() => {
+    if (loaded.current) return;
     try {
       const raw = sessionStorage.getItem(key);
       if (raw) {
@@ -24,6 +26,8 @@ export function useSessionLeadView(key: string, initial: LeadFilters) {
           const parsed = schema.safeParse(saved.filters);
           if (parsed.success) {
             restoredScroll.current = Number(saved.scroll) || 0;
+            current.current = parsed.data;
+            restoring.current = parsed.data;
             queueMicrotask(() => setFilters(parsed.data));
           }
         }
@@ -32,7 +36,10 @@ export function useSessionLeadView(key: string, initial: LeadFilters) {
     loaded.current = true;
   }, [key]);
   useEffect(() => {
-    current.current = filters;
+    if (!restoring.current || restoring.current === filters) {
+      current.current = filters;
+      restoring.current = null;
+    }
   }, [filters]);
   useEffect(() => {
     function save() {
@@ -62,21 +69,19 @@ export function useSessionLeadView(key: string, initial: LeadFilters) {
     };
   }, [key]);
   function update(value: SetStateAction<LeadFilters>) {
-    setFilters((old) => {
-      const next = typeof value === "function" ? value(old) : value;
-      current.current = next;
-      try {
-        sessionStorage.setItem(
-          key,
-          JSON.stringify({
-            filters: next,
-            scroll: window.scrollY,
-            at: Date.now(),
-          }),
-        );
-      } catch {}
-      return next;
-    });
+    const next = typeof value === "function" ? value(current.current) : value;
+    setFilters(next);
+    current.current = next;
+    try {
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          filters: next,
+          scroll: window.scrollY,
+          at: Date.now(),
+        }),
+      );
+    } catch {}
   }
   function restoreScroll(ready: boolean) {
     if (ready && restoredScroll.current !== null) {

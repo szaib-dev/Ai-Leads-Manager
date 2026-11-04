@@ -215,7 +215,10 @@ export function Providers({
         syncStatus,
         timezone,
         setTimezone,
-        retrySync: () => controller.current?.reconnect(),
+        retrySync: () => {
+          controller.current?.reconnect();
+          void controller.current?.reconcile();
+        },
         refreshPages,
         createPage,
         toast,

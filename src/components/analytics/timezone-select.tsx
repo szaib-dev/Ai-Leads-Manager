@@ -25,7 +25,10 @@ export function TimezoneSelect({
       return () => cancelAnimationFrame(frame);
     }
   }, [open]);
-  const options = useMemo(() => timezoneOptions(value), [value]);
+  const options = useMemo(
+    () => (open ? timezoneOptions(value) : []),
+    [value, open],
+  );
   const matches = searchTimezones(options, query);
   return (
     <Menu.Root
@@ -81,7 +84,7 @@ export function TimezoneSelect({
             className={styles.list}
             aria-label="Timezones"
           >
-            {matches.map((zone) => (
+            {matches.slice(0, 80).map((zone) => (
               <Menu.RadioItem
                 key={zone.value}
                 value={zone.value}
@@ -96,6 +99,11 @@ export function TimezoneSelect({
                 </Menu.ItemIndicator>
               </Menu.RadioItem>
             ))}
+            {matches.length > 80 && (
+              <p className={styles.empty}>
+                Search to narrow {matches.length} timezones.
+              </p>
+            )}
             {!matches.length && (
               <p className={styles.empty} role="status">
                 No matching timezones.

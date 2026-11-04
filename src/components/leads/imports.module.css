@@ -10,7 +10,7 @@
 }
 .mapping [data-slot="select-trigger"],
 .destination [data-slot="select-trigger"] {
-  display: block;
+  display: flex;
   width: 100%;
   margin-top: 8px;
   font-size: 12px;

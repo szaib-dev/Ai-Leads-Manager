@@ -57,6 +57,7 @@
   background: transparent;
 }
 .list {
+  min-height: 0;
   max-height: 300px;
   overflow: auto;
   padding: 5px;

@@ -1,3 +1,4 @@
+// Country associations: https://data.iana.org/time-zones/tzdb/zone.tab (IANA public-domain data).
 import countries from "./timezone-countries.json";
 import { validTimeZone } from "./contracts";
 const names = new Intl.DisplayNames(["en"], { type: "region" });

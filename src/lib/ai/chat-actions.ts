@@ -63,6 +63,18 @@ export async function conversationThread(
     const r = await q;
     if (r.error) throw new Error(r.error.message);
     const rows = (r.data as unknown as ChatMessage[]).slice(0, 40).reverse();
+    // Include a failed response's parent when a history page cuts between the pair.
+    const parentId = rows[0]?.role === "assistant" ? rows[0].reply_to : null;
+    if (parentId && !rows.some((m) => m.id === parentId)) {
+      const parent = await client
+        .from("ai_chat_messages")
+        .select("id,role,content,status,error,reply_to,operation_id,created_at")
+        .eq("owner_id", user.id)
+        .eq("conversation_id", id)
+        .eq("id", parentId)
+        .maybeSingle();
+      if (parent.data) rows.unshift(parent.data as ChatMessage);
+    }
     const ids = [
       ...new Set(rows.flatMap((m) => (m.operation_id ? [m.operation_id] : []))),
     ].slice(-8);

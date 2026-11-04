@@ -10,6 +10,7 @@ const routes = [
   "/dash/followups",
   "/dash/activity",
   "/dash/archive",
+  "/dash/ai",
 ];
 for (const route of routes) {
   const response = await fetch(new URL(route, base), { redirect: "manual" });
@@ -33,5 +34,12 @@ assert.equal(login.status, 200);
 const signup = await fetch(new URL("/signup", base));
 assert.equal(signup.status, 404, "No public signup page exists");
 console.log(
-  "PASS: 7 protected routes, malformed session rejection, login availability, signup absent, private/no-store redirects",
+  "PASS: 8 protected routes, malformed session rejection, login availability, signup absent, private/no-store redirects",
 );
+
+const unauthenticatedChat=await fetch(new URL('/api/ai/chat',base),{method:'POST',headers:{Origin:base.origin,'Content-Type':'application/json'},body:'{}'});
+assert.equal(unauthenticatedChat.status,401);
+assert.match(unauthenticatedChat.headers.get('cache-control'),/no-store/);
+const crossSiteChat=await fetch(new URL('/api/ai/chat',base),{method:'POST',headers:{Origin:'https://untrusted.example','Content-Type':'application/json'},body:'{}'});
+assert.equal(crossSiteChat.status,403);
+console.log('PASS: chat API rejects unauthenticated and cross-site requests');

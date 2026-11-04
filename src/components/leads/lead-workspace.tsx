@@ -764,7 +764,6 @@ export function LeadWorkspace({
           ) || null
         }
         onClose={() => setAttemptId(null)}
-        onRecorded={refresh}
       />
       <Dialog
         open={!!archiveTarget}

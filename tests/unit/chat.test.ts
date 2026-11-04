@@ -76,13 +76,29 @@ test("NDJSON handles chunk boundaries and preserves delivered partial text on in
   await assert.rejects(iterator.next(), /network interrupted/);
 });
 
-
-test('chat origin checks use the public Host while rejecting cross-site and opaque origins',async()=>{
- const {trustedChatOrigin}=await import('../../src/lib/ai/request-origin');
- const req=(origin:string,host:string,site='same-origin')=>new Request('http://localhost:3004/api/ai/chat',{headers:{origin,host,'sec-fetch-site':site}});
- assert.equal(trustedChatOrigin(req('http://127.0.0.1:3004','127.0.0.1:3004')),true);
- assert.equal(trustedChatOrigin(req('https://folio.example','folio.example')),true);
- assert.equal(trustedChatOrigin(req('https://evil.example','folio.example')),false);
- assert.equal(trustedChatOrigin(req('null','folio.example')),false);
- assert.equal(trustedChatOrigin(req('https://folio.example','folio.example','cross-site')),false);
+test("chat origin checks use the public Host while rejecting cross-site and opaque origins", async () => {
+  const { trustedChatOrigin } = await import("../../src/lib/ai/request-origin");
+  const req = (origin: string, host: string, site = "same-origin") =>
+    new Request("http://localhost:3004/api/ai/chat", {
+      headers: { origin, host, "sec-fetch-site": site },
+    });
+  assert.equal(
+    trustedChatOrigin(req("http://127.0.0.1:3004", "127.0.0.1:3004")),
+    true,
+  );
+  assert.equal(
+    trustedChatOrigin(req("https://folio.example", "folio.example")),
+    true,
+  );
+  assert.equal(
+    trustedChatOrigin(req("https://evil.example", "folio.example")),
+    false,
+  );
+  assert.equal(trustedChatOrigin(req("null", "folio.example")), false);
+  assert.equal(
+    trustedChatOrigin(
+      req("https://folio.example", "folio.example", "cross-site"),
+    ),
+    false,
+  );
 });

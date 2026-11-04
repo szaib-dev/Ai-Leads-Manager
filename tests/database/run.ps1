@@ -8,7 +8,7 @@ if (!(Test-Path (Join-Path $cluster 'PG_VERSION'))) {
   & (Join-Path $PgBin 'initdb.exe') -D $cluster -U phase2_test -A trust --encoding=UTF8 --locale=C
   if ($LASTEXITCODE -ne 0) { throw 'Scratch initdb failed' }
 }
-& (Join-Path $PgBin 'pg_ctl.exe') -D $cluster status *> $null
+& (Join-Path $PgBin 'pg_isready.exe') -h 127.0.0.1 -p 55432 *> $null
 $started = $LASTEXITCODE -ne 0
 if ($started) {
   & (Join-Path $PgBin 'pg_ctl.exe') -D $cluster -l (Join-Path $cluster 'server.log') -o '-p 55432 -h 127.0.0.1 -c timezone=UTC' -w start

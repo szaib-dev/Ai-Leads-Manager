@@ -141,11 +141,15 @@ export async function POST(request: Request) {
         if (reserve.error) throw new Error(reserve.error.message);
         reserved = true;
         emit({ type: "stage", text: "Generating response…" });
-        content = "";
-        emit({ type: "replace", text: "" });
+        let receivedText = false;
         const answer = await streamResponse(
           messages,
           (text) => {
+            if (!receivedText) {
+              receivedText = true;
+              content = "";
+              emit({ type: "replace", text: "" });
+            }
             content += text;
             emit({ type: "delta", text });
           },

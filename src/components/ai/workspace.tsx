@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -91,8 +90,8 @@ function Workspace({
   recentImport?: string;
   refreshPages: () => Promise<void>;
 }) {
-  const router = useRouter();
   const [id, setId] = useState(conversationId);
+  const [loadId, setLoadId] = useState(conversationId);
   const [scope, setScope] = useState(initialPage ?? "all");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,6 +106,7 @@ function Workspace({
     useState<Awaited<ReturnType<typeof conversations>>["data"]>();
   const [older, setOlder] = useState<ChatMessage[]>([]);
   const [hasOlder, setHasOlder] = useState<boolean>();
+  const generation = useRef(0);
   const lock = useRef(false),
     controller = useRef<AbortController | null>(null),
     mounted = useRef(true),
@@ -115,10 +115,8 @@ function Workspace({
     composer = useRef<HTMLTextAreaElement>(null);
   const retryRequest = useRef<ChatRequest | null>(null);
   const history = useQuery("chat-history", () => conversations());
-  const thread = useQuery(`chat-thread:${conversationId ?? ""}`, () =>
-    conversationId
-      ? conversationThread(conversationId)
-      : Promise.resolve({ data: undefined }),
+  const thread = useQuery(`chat-thread:${loadId ?? ""}`, () =>
+    loadId ? conversationThread(loadId) : Promise.resolve({ data: undefined }),
   );
   const settings = useQuery("ai-workspace-settings", () => assistantState());
   const messages = [...older, ...(local ?? thread.data?.messages ?? [])];
@@ -128,7 +126,7 @@ function Workspace({
       allResults[key] = fresh;
   }
   const effectiveScope =
-    local === null && !initialPage && thread.data
+    local === null && loadId && thread.data
       ? (thread.data.conversation.scope_page_id ?? "all")
       : scope;
   const activePage = effectiveScope === "all" ? undefined : effectiveScope;
@@ -142,9 +140,33 @@ function Workspace({
     };
   }, []);
   useEffect(() => {
-    if (follow.current && viewport.current)
+    function restore() {
+      generation.current++;
+      controller.current?.abort();
+      lock.current = false;
+      setBusy(false);
+      setStage("");
+      const query = new URL(window.location.href).searchParams;
+      const chat = query.get("chat") ?? undefined;
+      setId(chat);
+      setLoadId(chat);
+      setLocal(chat ? null : []);
+      setResults({});
+      setOlder([]);
+      setHasOlder(undefined);
+      setText("");
+      setError("");
+      setScope(query.get("page") ?? "all");
+      retryRequest.current = null;
+      follow.current = true;
+    }
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  useEffect(() => {
+    if (messages.length > 0 && follow.current && viewport.current)
       viewport.current.scrollTop = viewport.current.scrollHeight;
-  }, [local, thread.data, stage]);
+  }, [local, thread.data, stage, messages.length]);
   function updateMessage(
     messageId: string,
     change: Partial<ChatMessage> | ((m: ChatMessage) => Partial<ChatMessage>),
@@ -159,8 +181,8 @@ function Workspace({
       );
   }
   async function submit(retry?: ChatMessage) {
-    if (lock.current || !canFetch || (thread.loading && !!conversationId))
-      return;
+    if (lock.current || !canFetch || (thread.loading && !!loadId)) return;
+    const stamp = generation.current;
     let request: ChatRequest;
     if (retry) {
       const original = messages.find((m) => m.id === retry.reply_to);
@@ -249,7 +271,7 @@ function Workspace({
       if (!response.body)
         throw new Error("The response stream is unavailable.");
       for await (const event of ndjson<ChatEvent>(response.body)) {
-        if (!mounted.current) return;
+        if (!mounted.current || stamp !== generation.current) return;
         if (event.type === "stage") setStage(event.text);
         if (event.type === "replace")
           updateMessage(request.assistantMessageId, { content: event.text });
@@ -291,7 +313,7 @@ function Workspace({
           "The connection ended unexpectedly. Your partial response is preserved.",
         );
     } catch (e) {
-      if (mounted.current)
+      if (mounted.current && stamp === generation.current)
         updateMessage(request.assistantMessageId, {
           status: "interrupted",
           error:
@@ -300,7 +322,7 @@ function Workspace({
               : "Request interrupted. Retry to continue.",
         });
     } finally {
-      if (mounted.current) {
+      if (mounted.current && stamp === generation.current) {
         lock.current = false;
         setBusy(false);
         setStage("");
@@ -323,6 +345,7 @@ function Workspace({
     page?: number,
   ) {
     if (lock.current || !id || !canFetch) return;
+    const stamp = generation.current;
     lock.current = true;
     setBusy(true);
     setError("");
@@ -337,6 +360,7 @@ function Workspace({
         page,
       });
       if (r.error) throw new Error(r.error);
+      if (!mounted.current || stamp !== generation.current) return;
       if (r.data && typeof r.data === "object")
         setResults((s) => ({
           ...s,
@@ -346,6 +370,7 @@ function Workspace({
       if (action !== "page") {
         const loaded = await conversationThread(id);
         if (loaded.error) throw new Error(loaded.error);
+        if (!mounted.current || stamp !== generation.current) return;
         if (loaded.data) {
           setLocal(loaded.data.messages);
           setResults(loaded.data.results);
@@ -357,13 +382,14 @@ function Workspace({
         settings.retry();
       }
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Could not confirm the result. Reopen this chat before retrying.",
-      );
+      if (mounted.current && stamp === generation.current)
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Could not confirm the result. Reopen this chat before retrying.",
+        );
     } finally {
-      if (mounted.current) {
+      if (mounted.current && stamp === generation.current) {
         lock.current = false;
         setBusy(false);
         setStage("");
@@ -373,6 +399,7 @@ function Workspace({
   function newChat() {
     if (busy) return;
     setId(undefined);
+    setLoadId(undefined);
     setLocal([]);
     setResults({});
     setOlder([]);
@@ -382,7 +409,7 @@ function Workspace({
     setScope(initialPage ?? "all");
     retryRequest.current = null;
     setHistoryOpen(false);
-    router.replace("/dash/ai");
+    window.history.replaceState(null, "", "/dash/ai");
   }
   async function loadOlder() {
     if (!id || busy) return;
@@ -434,7 +461,17 @@ function Workspace({
               aria-current={id === chat.id ? "page" : undefined}
               onClick={() => {
                 setHistoryOpen(false);
-                router.push(`/dash/ai?chat=${chat.id}`);
+                setId(chat.id);
+                setLoadId(chat.id);
+                setLocal(null);
+                setResults({});
+                setOlder([]);
+                setHasOlder(undefined);
+                setText("");
+                setError("");
+                retryRequest.current = null;
+                follow.current = true;
+                window.history.pushState(null, "", `/dash/ai?chat=${chat.id}`);
               }}
             >
               <MessageSquare size={15} />
@@ -542,7 +579,7 @@ function Workspace({
           }}
         >
           <div className={styles.column}>
-            {thread.loading && conversationId && !local && (
+            {thread.loading && loadId && !local && (
               <p role="status" className="muted">
                 Opening conversation…
               </p>
@@ -555,7 +592,7 @@ function Workspace({
                 </Button>
               </p>
             )}
-            {!messages.length && !conversationId && (
+            {!messages.length && !id && (
               <div className={styles.empty}>
                 <span className={styles.mark}>
                   <Sparkles size={27} />
@@ -731,7 +768,7 @@ function Workspace({
                   !shouldSend(text, busy) ||
                   !canFetch ||
                   !!thread.error ||
-                  (!!conversationId && thread.loading)
+                  (!!loadId && thread.loading)
                 }
               >
                 <ArrowUp size={20} />
