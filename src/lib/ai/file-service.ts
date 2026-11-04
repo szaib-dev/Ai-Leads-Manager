@@ -7,6 +7,7 @@ import {
   fileSummary,
   validateFileMapping,
   fileWriteAllowed,
+  isFileConfirmation,
 } from "./file-contracts";
 import { MODEL, OUTPUT_TOKENS, aiServerToken } from "./config";
 import { parseCsv, mapRows } from "@/lib/imports/csv";
@@ -18,6 +19,7 @@ interface StoredFile {
   file_name: string;
   csv_text: string;
   message_id: string | null;
+  pending_import: unknown;
 }
 export async function answerWithFile(
   client: Client,
@@ -29,7 +31,7 @@ export async function answerWithFile(
 ): Promise<{ reply: string; artifact?: ImportArtifact } | null> {
   let q = client
     .from("ai_chat_files" as never)
-    .select("id,file_name,csv_text,message_id")
+    .select("id,file_name,csv_text,message_id,pending_import")
     .eq("owner_id", owner)
     .eq("conversation_id", input.conversationId);
   if (input.fileId) q = q.eq("id", input.fileId);
@@ -96,6 +98,16 @@ export async function answerWithFile(
     .eq("owner_id", owner)
     .is("deleted_at", null);
   if (pages.error) throw new Error("Could not check lead pages. Please retry.");
+  const pending = fileDecisionSchema.safeParse(file.pending_import);
+  const confirmed = pending.success && isFileConfirmation(input.text);
+  async function remember(plan: unknown) {
+    const saved = await client.rpc(
+      "set_chat_file_plan" as never,
+      { p_file: file!.id, p_plan: plan, p_token: aiServerToken() } as never,
+    );
+    if (saved.error)
+      throw new Error("Could not save this import proposal. Please retry.");
+  }
   const summary = fileSummary(file.csv_text);
   const messages = [
     { role: "system", content: FILE_SYSTEM },
@@ -109,6 +121,7 @@ export async function answerWithFile(
         ownedPages: pages.data,
         currentPage: input.pageId,
         history: memory.recent.slice(-10),
+        pendingImport: pending.success ? pending.data : null,
       }),
     },
   ];
@@ -116,75 +129,87 @@ export async function answerWithFile(
   let reserved = false,
     usage: ProviderUsage | undefined;
   try {
-    stage("Reading the attached file…");
-    const reserve = await client.rpc("ai_csv_reserve", {
-      p_request: budget,
-      p_input_bound: Buffer.byteLength(JSON.stringify(messages)) + 1024,
-      p_server_token: aiServerToken(),
-    });
-    if (reserve.error)
-      throw new Error(
-        "File assistance is temporarily unavailable. Please retry shortly.",
+    let decision;
+    if (confirmed && pending.success) decision = pending.data;
+    else {
+      stage("Reading the attached file…");
+      const reserve = await client.rpc("ai_csv_reserve", {
+        p_request: budget,
+        p_input_bound: Buffer.byteLength(JSON.stringify(messages)) + 1024,
+        p_server_token: aiServerToken(),
+      });
+      if (reserve.error)
+        throw new Error(
+          "File assistance is temporarily unavailable. Please retry shortly.",
+        );
+      reserved = true;
+      const response = await fetch(
+        "https://api.deepseek.com/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages,
+            thinking: { type: "disabled" },
+            max_tokens: OUTPUT_TOKENS,
+            temperature: 0,
+            response_format: { type: "json_object" },
+            stream: false,
+          }),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(45000)]),
+          cache: "no-store",
+        },
       );
-    reserved = true;
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        thinking: { type: "disabled" },
-        max_tokens: OUTPUT_TOKENS,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        stream: false,
-      }),
-      signal: AbortSignal.any([signal, AbortSignal.timeout(45000)]),
-      cache: "no-store",
-    });
-    if (!response.ok)
-      throw new Error(
-        "File assistance is unavailable. Your file is saved; please retry.",
+      if (!response.ok)
+        throw new Error(
+          "File assistance is unavailable. Your file is saved; please retry.",
+        );
+      const raw = await response.text();
+      if (Buffer.byteLength(raw) > 64000)
+        throw new Error(
+          "The file response was too large. Please ask a narrower question.",
+        );
+      const body = JSON.parse(raw);
+      usage = {
+        input: Number(body.usage?.prompt_tokens),
+        output: Number(body.usage?.completion_tokens),
+      };
+      if (
+        !Object.values(usage).every((n) => Number.isSafeInteger(n) && n >= 0) ||
+        usage.output > OUTPUT_TOKENS
+      ) {
+        usage = undefined;
+        throw new Error("Could not verify the response. Please retry.");
+      }
+      if (body.choices?.[0]?.finish_reason !== "stop")
+        throw new Error(
+          "Could not finish reading this file. Please retry with a narrower request.",
+        );
+      decision = fileDecisionSchema.parse(
+        JSON.parse(body.choices[0].message.content),
       );
-    const raw = await response.text();
-    if (Buffer.byteLength(raw) > 64000)
-      throw new Error(
-        "The file response was too large. Please ask a narrower question.",
-      );
-    const body = JSON.parse(raw);
-    usage = {
-      input: Number(body.usage?.prompt_tokens),
-      output: Number(body.usage?.completion_tokens),
-    };
-    if (
-      !Object.values(usage).every((n) => Number.isSafeInteger(n) && n >= 0) ||
-      usage.output > OUTPUT_TOKENS
-    ) {
-      usage = undefined;
-      throw new Error("Could not verify the response. Please retry.");
     }
-    if (body.choices?.[0]?.finish_reason !== "stop")
-      throw new Error(
-        "Could not finish reading this file. Please retry with a narrower request.",
-      );
-    const decision = fileDecisionSchema.parse(
-      JSON.parse(body.choices[0].message.content),
-    );
-    if (decision.action === "workspace") return null;
+    if (decision.action === "workspace") {
+      await remember(null);
+      return null;
+    }
+    if (decision.action === "analyze") await remember(null);
     if (decision.action !== "create" && decision.action !== "append")
       return {
         reply:
           decision.reply ||
           `I received **${file.file_name}** (${summary.rowCount} rows). What would you like me to do with it?`,
       };
-    if (!fileWriteAllowed(input.text, memory.recent))
+    if (!confirmed && !fileWriteAllowed(input.text, memory.recent))
       return {
         reply:
           "What would you like to know about this file? I have not imported any leads.",
       };
+    await remember(decision);
     const destination =
       decision.action === "append"
         ? pages.data.find((p) => p.id === decision.pageId)
@@ -206,25 +231,37 @@ export async function answerWithFile(
       ["trim_outer_whitespace", "normalize_phone_spacing"],
       true,
     );
+    if (!mapped.valid.length)
+      return {
+        reply: `None of the ${mapped.total} rows can be imported yet. ${mapped.invalid[0]?.message ?? "Please check the file's fields."} No page was created.`,
+      };
     if (
       mapped.invalid.length &&
+      !confirmed &&
       !/\b(valid rows|skip (?:the )?invalid|ignore (?:the )?invalid)\b/i.test(
         input.text,
       )
-    )
+    ) {
+      const issues = new Map<string, number[]>();
+      for (const issue of mapped.invalid) {
+        const rows = issues.get(issue.message) ?? [];
+        rows.push(issue.row);
+        issues.set(issue.message, rows);
+      }
+      const details = [...issues]
+        .slice(0, 4)
+        .map(
+          ([reason, rows]) =>
+            `Rows ${rows.slice(0, 8).join(", ")}${rows.length > 8 ? ` and ${rows.length - 8} others` : ""}: ${reason}`,
+        )
+        .join("\n\n");
       return {
-        reply: `${mapped.valid.length} rows are valid; ${mapped.invalid.length} need attention.\n\n${mapped.invalid
-          .slice(0, 8)
-          .map((r) => `- Row ${r.row}: ${r.message}`)
-          .join("\n")}\n\nWould you like me to import only the valid rows?`,
+        reply: `${mapped.valid.length} rows are ready; ${mapped.invalid.length} need attention.\n\n${details}\n\nShould I import the valid rows?`,
       };
-    if (!mapped.valid.length)
-      return {
-        reply:
-          "No valid lead rows are available yet. Please correct the reported fields first.",
-      };
+    }
     if (
       mapped.valid.some((r) => r.status === "not_interested") &&
+      !confirmed &&
       !/\b(confirm|yes|reject|not interested|do.not.call)\b/i.test(input.text)
     )
       return {
@@ -265,6 +302,7 @@ export async function answerWithFile(
       throw new Error(
         "The import was saved, but its conversation summary needs a retry. Retry this message to recover it safely.",
       );
+    await remember(null);
     const name =
       destination?.name ||
       decision.pageName ||

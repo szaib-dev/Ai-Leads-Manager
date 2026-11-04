@@ -53,6 +53,7 @@ const aliases: Record<ImportField, string[]> = {
     "mobile",
     "contactnumber",
     "businessphone",
+    "publishedbusinessphone",
   ],
   website_url: [
     "website",
@@ -74,7 +75,7 @@ const aliases: Record<ImportField, string[]> = {
   country: ["country", "countryname"],
   location: ["location", "city", "address", "fulladdress"],
   notes: ["notes", "note", "description", "comments", "editablenotes"],
-  status: ["status", "leadstatus", "outreachstatus"],
+  status: ["status", "leadstatus", "outreachstatus", "callstatus"],
 };
 export function parseCsv(text: string) {
   if (new TextEncoder().encode(text).length > MAX_CSV_BYTES)
@@ -146,6 +147,9 @@ export const importRowSchema = z.object({
 export type ImportRow = z.infer<typeof importRowSchema>;
 const statusAliases: Record<string, string> = {
   "not contacted": "new",
+  "not called": "new",
+  not_called: "new",
+  uncalled: "new",
   not_contacted: "new",
   uncontacted: "new",
   "no answer": "no_answer",
@@ -211,7 +215,11 @@ export function mapRows(
       invalid.push({
         row: index + 2,
         message: parsed.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .map((i) =>
+            i.path[0] === "status"
+              ? `Unrecognized status "${values.status}". Use New, No Answer, Voicemail, Interested, Not Interested, Follow-up, Meeting Booked, or Awaiting Callback.`
+              : `${i.path.join(".")}: ${i.message}`,
+          )
           .join("; "),
       });
   });

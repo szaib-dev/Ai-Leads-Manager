@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { REPLY_STYLE } from "./reply-style";
 import { fields, parseCsv, type Mapping } from "@/lib/imports/csv";
 export const fileDecisionSchema = z
   .object({
@@ -51,6 +52,14 @@ export function validateFileMapping(
     );
   return mapping;
 }
+export function isFileConfirmation(text: string) {
+  return (
+    /^(?:(?:hmm?|um|well)[ ,]+)?(?:yes|yeah|yep|yup|okay|ok|sure|please do|go ahead|do it|proceed|sounds good|that would be better)\b/i.test(
+      text.trim(),
+    ) &&
+    !/\b(?:not|never|don['’]?t|no|wait|cancel|stop|instead|but)\b/i.test(text)
+  );
+}
 export function fileWriteAllowed(
   text: string,
   history: { role: string; content: string }[] = [],
@@ -68,13 +77,25 @@ export function fileWriteAllowed(
   )
     return false;
   if (
-    /\b(?:creat\w*|import\w*|add|append|make|put|save|go ahead|do it|yes|proceed|valid rows)\b/i.test(
+    /\b(?:creat\w*|import\w*|add|append|make|put|save|valid rows)\b/i.test(
       text,
     )
   )
     return true;
   const lastAssistant =
     history.filter((m) => m.role === "assistant").at(-1)?.content ?? "";
+  if (
+    isFileConfirmation(text) &&
+    /(?:page|import|add|create|continue|proceed|valid rows)/i.test(
+      lastAssistant,
+    ) &&
+    history.some(
+      (m) =>
+        m.role === "user" &&
+        /\b(?:create|import|add|append|make)\b/i.test(m.content),
+    )
+  )
+    return true;
   return (
     /(?:which|what).*(?:page|column)|should I continue|valid rows/i.test(
       lastAssistant,
@@ -87,6 +108,8 @@ export function fileWriteAllowed(
   );
 }
 export const FILE_SYSTEM = `You help with a file attached to a private lead-workspace conversation. Return JSON with EVERY key: {"action":"clarify|analyze|create|append|workspace","pageId":null,"pageName":"","reply":"","mapping":{}}.
+${REPLY_STYLE}
+Treat natural affirmations such as "hmm yeah", "yup that would be better", "okay" and "sure" as acceptance of your most recent concrete import proposal. Carry forward its action, destination and name, and execute it without asking for the same approval again. "Not called" and "Not contacted" both mean new.
 The upload is not an import instruction. On an attachment alone, briefly acknowledge the filename/row count and ASK what the user wants to do with it. Never assume a new page or automatic import, regardless of settings.
 For questions such as "what does it contain", "what do you think", or "explain this file", use analyze and give a useful natural Markdown explanation based ONLY on supplied full-file counts, column summaries and the bounded sample. Explain gaps and your assessment; distinguish the sample from all records. Do not ask to import on every answer. No database writes for analysis.
 Create ONLY when the CURRENT user instruction asks to create/import a new page, or explicitly approves your previous concrete new-page question. If told to choose the name, choose a short sensible name from file metadata. Append ONLY when currently asked to add/import into an EXISTING page, or explicitly approves your previous concrete append question. Resolve pageId only from the supplied owned pages. If destination is missing or matches several pages, clarify with a concise question. Never silently choose a new page for an existing-page request. Never import just because a previous message mentioned it. Respect negations and requests to explain before importing.

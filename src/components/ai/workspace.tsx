@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { SyncIndicator } from "@/components/shared/sync-indicator";
+import { formatChatText } from "@/lib/ai/reply-style";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -343,10 +344,12 @@ function Workspace({
         if (event.type === "stage") setStage(event.text);
         if (event.type === "replace")
           updateMessage(request.assistantMessageId, { content: event.text });
-        if (event.type === "delta")
+        if (event.type === "delta") {
+          setStage("");
           updateMessage(request.assistantMessageId, (m) => ({
             content: m.content + event.text,
           }));
+        }
         if (event.type === "result") {
           setResults((s) => ({ ...s, [event.result.id]: event.result }));
           updateMessage(request.assistantMessageId, {
@@ -787,7 +790,7 @@ function Workspace({
                 ) : (
                   <div className={styles.markdown}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {m.content}
+                      {formatChatText(m.content)}
                     </ReactMarkdown>
                     {m.status === "processing" && busy && (
                       <span

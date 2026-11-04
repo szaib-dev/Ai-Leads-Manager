@@ -105,8 +105,34 @@ export async function POST(request: Request) {
           request.signal,
         );
         if (fileAnswer) {
-          content = fileAnswer.reply;
-          emit({ type: "replace", text: content });
+          const fileMessages = responseMessages(input.text, {
+            reply: fileAnswer.reply,
+            confirmedImport: fileAnswer.artifact ?? null,
+          });
+          const reserve = await client.rpc("ai_csv_reserve", {
+            p_request: budgetId,
+            p_input_bound:
+              Buffer.byteLength(JSON.stringify(fileMessages)) + 1024,
+            p_server_token: aiServerToken(),
+          });
+          if (reserve.error)
+            throw new Error(
+              "The response is temporarily unavailable. Your file and any completed import are saved; retry this message.",
+            );
+          reserved = true;
+          content = "";
+          emit({ type: "replace", text: "" });
+          emit({ type: "stage", text: "Writing reply…" });
+          const answer = await streamResponse(
+            fileMessages,
+            (text) => {
+              content += text;
+              emit({ type: "delta", text });
+            },
+            request.signal,
+          );
+          usage = answer.usage;
+          content = answer.content;
           const saved = await chatRpc<boolean>(client, "ai_chat_finish", {
             p_id: input.assistantMessageId,
             p_attempt: claim.attempt,
@@ -214,6 +240,7 @@ export async function POST(request: Request) {
           request.signal,
         );
         usage = answer.usage;
+        content = answer.content;
         const saved = await chatRpc<boolean>(client, "ai_chat_finish", {
           p_id: input.assistantMessageId,
           p_attempt: claim.attempt,

@@ -60,7 +60,7 @@ test("DeepSeek streaming delivers live deltas before the upstream stream finishe
   p.send({ choices: [{ delta: { content: "**12 leads**." } }] });
   p.finish();
   const result = await pending;
-  assert.equal(result.content, "You have **12 leads**.");
+  assert.equal(result.content, "You have 12 leads.");
   assert.deepEqual(result.usage, { input: 40, output: 8 });
 });
 test("truncated streams report failure after preserving all deltas already delivered", async () => {

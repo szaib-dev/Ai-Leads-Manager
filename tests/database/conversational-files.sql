@@ -1,12 +1,16 @@
 begin;
 insert into auth.users(id)values('99000000-0000-4000-8000-000000000017'),('98000000-0000-4000-8000-000000000017');
 select set_config('request.jwt.claim.sub','99000000-0000-4000-8000-000000000017',true);
+update private.ai_runtime set server_token_hash=sha256(convert_to('file-plan-fixture','UTF8'));
 set local role authenticated;
 do $$declare f uuid=gen_random_uuid();c uuid=gen_random_uuid();u uuid=gen_random_uuid();a uuid=gen_random_uuid();p uuid;l uuid;stamp timestamptz;r jsonb;begin
  perform public.store_chat_file(f,c,'lead-data.csv',E'name,phone\nFixture,123');
  if exists(select 1 from public.lead_pages where owner_id=auth.uid()) or exists(select 1 from public.imports where owner_id=auth.uid()) then raise exception 'Attachment caused implicit import';end if;
  perform public.ai_chat_claim(c,u,a,'Explain the attached file',null);perform public.bind_chat_file(f,u);
  if not exists(select 1 from public.ai_chat_files where id=f and message_id=u)then raise exception 'File did not persist with conversation';end if;
+ perform public.set_chat_file_plan(f,'{"action":"create","pageId":null,"pageName":"Chosen Leads","reply":"","mapping":{"business_name":0}}','file-plan-fixture');
+ if (select pending_import->>'pageName' from public.ai_chat_files where id=f)<>'Chosen Leads' then raise exception 'Pending proposal did not persist';end if;
+ begin perform public.set_chat_file_plan(f,null,'invalid-proof');raise exception 'Client forged pending plan';exception when insufficient_privilege then null;end;
  p=public.manage_page(null,'Callbacks','',false);
  insert into public.leads(page_id,business_name,phone)values(p,'Callback fixture','+12025550155')returning id,updated_at into l,stamp;
  perform public.record_call(l,stamp,gen_random_uuid(),'awaiting_callback','');
