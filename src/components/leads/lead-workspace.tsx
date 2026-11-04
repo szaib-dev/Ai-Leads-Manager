@@ -1,4 +1,5 @@
 "use client";
+import { ReimportBadge } from "./reimport-badge";
 import { MapsButton } from "./maps-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
@@ -469,6 +470,10 @@ export function LeadWorkspace({
                     </td>
                     <td>
                       <StatusBadge status={l.status} />
+                      <ReimportBadge
+                        lead={l}
+                        onReview={() => setSelectedId(l.id)}
+                      />
                     </td>
                     <td>
                       {mode === "attempts" ? (

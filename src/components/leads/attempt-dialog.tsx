@@ -1,7 +1,18 @@
 "use client";
+import { SafeCallLink } from "./safe-call-link";
+import styles from "./calling.module.css";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
-import { Check, Phone } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Check,
+  Phone,
+  PhoneMissed,
+  Voicemail,
+  Heart,
+  Ban,
+  CalendarClock,
+  Handshake,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +48,15 @@ export function AttemptDialog({
     [error, setError] = useState(""),
     [confirmed, setConfirmed] = useState(false),
     [requestId] = useState(() => crypto.randomUUID());
+  const submitting = useRef(false);
+  const icons = {
+    no_answer: PhoneMissed,
+    voicemail: Voicemail,
+    interested: Heart,
+    not_interested: Ban,
+    callback_requested: CalendarClock,
+    meeting_booked: Handshake,
+  };
   const scheduled =
     outcome === "callback_requested" || outcome === "meeting_booked";
   const blocked = lead?.suppressed || lead?.archived;
@@ -47,7 +67,15 @@ export function AttemptDialog({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent
+        className={styles.sheet}
+        onEscapeKeyDown={(e) => {
+          if (busy) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (busy) e.preventDefault();
+        }}
+      >
         <div className="dialog-hero-icon">
           <Phone size={23} />
         </div>
@@ -56,10 +84,22 @@ export function AttemptDialog({
           {lead?.name} · {lead?.attempts ?? 0} counted attempts. Only
           confirmation records a new attempt.
         </DialogDescription>
+        {lead && (
+          <div className={styles.call}>
+            <Button asChild disabled={!!blocked}>
+              <SafeCallLink lead={lead}>
+                <Phone size={18} />
+                Call business
+              </SafeCallLink>
+            </Button>
+            <span>Opening the dialer does not record an attempt.</span>
+          </div>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            if (!lead || busy) return;
+            if (!lead || submitting.current) return;
+            submitting.current = true;
             const f = new FormData(e.currentTarget);
             setBusy(true);
             setError("");
@@ -120,27 +160,34 @@ export function AttemptDialog({
                 "Could not confirm the result. Retry without closing this dialog; the request ID prevents double counting.",
               );
             } finally {
+              submitting.current = false;
               setBusy(false);
             }
           }}
         >
-          <fieldset className="outcome-options" disabled={busy}>
+          <fieldset className={styles.outcomes} disabled={busy}>
             <legend>Call outcome</legend>
-            {callOutcomes.map((s) => (
-              <label key={s} className={outcome === s ? "selected" : ""}>
-                <input
-                  type="radio"
-                  name="outcome"
-                  checked={outcome === s}
-                  onChange={() => {
-                    setOutcome(s);
-                    setConfirmed(false);
-                  }}
-                />
-                <span>{outcomeLabels[s]}</span>
-                {outcome === s && <Check size={15} />}
-              </label>
-            ))}
+            {callOutcomes.map((s) => {
+              const Icon = icons[s];
+              return (
+                <label key={s} data-selected={outcome === s}>
+                  <input
+                    type="radio"
+                    name="outcome"
+                    checked={outcome === s}
+                    onChange={() => {
+                      setOutcome(s);
+                      setConfirmed(false);
+                    }}
+                  />
+                  <Icon size={19} />
+                  <span>
+                    {s === "callback_requested" ? "Callback" : outcomeLabels[s]}
+                  </span>
+                  {outcome === s && <Check size={15} />}
+                </label>
+              );
+            })}
           </fieldset>
           {scheduled && (
             <div className="form-row">

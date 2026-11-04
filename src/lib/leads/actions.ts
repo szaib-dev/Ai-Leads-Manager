@@ -226,6 +226,7 @@ export async function importCsv(
       parseCsv(input.text),
       mapping,
       cleanupSchema.parse(JSON.parse(String(form.get("cleanup") || "[]"))),
+      form.get("preserveExtra") === "true",
     );
     const newName =
       mode === "new"
@@ -290,6 +291,7 @@ export async function previewImport(form: FormData): Promise<
       parseCsv(text),
       mapping,
       cleanupSchema.parse(JSON.parse(String(form.get("cleanup") || "[]"))),
+      form.get("preserveExtra") === "true",
     );
     const duplicates = await rpc("preview_import", {
       p_urls: parsed.valid.map((r) => r.google_maps_url || null),

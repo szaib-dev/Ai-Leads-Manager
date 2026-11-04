@@ -1,0 +1,89 @@
+.sheet {
+  padding: 26px !important;
+}
+.call {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+.call > a {
+  min-height: 48px;
+}
+.call > span {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+.outcomes {
+  border: 0;
+  margin: 18px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.outcomes legend {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.outcomes label {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  min-height: 60px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--bg);
+}
+.outcomes label[data-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.outcomes label:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.outcomes input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.outcomes label > svg:last-child {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.outcomes label > svg {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .sheet {
+    inset: auto 0 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 92dvh !important;
+    padding: 22px 18px max(20px, env(safe-area-inset-bottom)) !important;
+  }
+  .sheet:before {
+    content: "";
+    display: block;
+    width: 32px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    margin: -8px auto 14px;
+  }
+  .outcomes label {
+    min-height: 64px;
+  }
+  .sheet h2 {
+    font-size: 21px;
+  }
+}

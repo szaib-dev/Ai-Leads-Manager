@@ -103,7 +103,8 @@ export async function POST(request: Request) {
             pageId: input.pageId ?? undefined,
             selectedIds: input.selectedIds,
             recentImportId: input.recentImportId,
-            previousResultId: memory.previousResult ?? claim.previousResult,
+            previousResultId:
+              memory.previousResult ?? claim.previousResult ?? undefined,
             history: memory.recent.slice(-6).map((m) => ({
               role: m.role,
               content: m.content.slice(0, 1000),
@@ -128,6 +129,8 @@ export async function POST(request: Request) {
               requiresApproval: result.requiresApproval,
               scope: result.scope,
               summary: result.summary,
+              statistics: result.statistics,
+              importSummary: result.importSummary,
             }
           : { question: planned.data?.reply ?? "Please clarify your request." };
         const messages = responseMessages(input.text, evidence);

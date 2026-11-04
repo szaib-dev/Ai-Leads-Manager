@@ -11,6 +11,7 @@ import {
   type ChatContext,
   type Intent,
   type AiResult,
+  deletionCountryGuard,
 } from "./assistant-contracts";
 import { aiConfigured, aiServerToken } from "./config";
 import type { ProviderUsage } from "./deepseek";
@@ -42,7 +43,7 @@ export function message(e: unknown) {
   )
     throw e;
   return e instanceof z.ZodError
-    ? "Please clarify the command or choose a narrower scope. No lead changes were made."
+    ? "The request could not be validated. Please retry; no lead changes were made."
     : e instanceof Error
       ? e.message
       : "Request failed. Your workspace remains protected.";
@@ -197,7 +198,16 @@ export async function planAssistant(
   try {
     text = z.string().trim().min(2).max(2000).parse(text);
     z.uuid().parse(requestId);
-    const context = contextSchema.parse(input);
+    const parsedContext = contextSchema.safeParse(input);
+    if (!parsedContext.success) {
+      console.warn("AI context validation failed", {
+        fields: parsedContext.error.issues.map((i) => i.path.join(".")),
+      });
+      throw new Error(
+        "Workspace context could not be validated. Reopen this chat and retry.",
+      );
+    }
+    const context = parsedContext.data;
     if (forbiddenCommand(text))
       return {
         data: {
@@ -271,7 +281,11 @@ export async function planAssistant(
     options.signal?.throwIfAborted();
     usage = answer.usage;
     const intent = intentSchema.parse(answer.intent);
-    if (intent.action === "clarify" || intent.action === "refuse")
+    if (
+      intent.action === "answer" ||
+      intent.action === "clarify" ||
+      intent.action === "refuse"
+    )
       return {
         data: {
           reply:
@@ -281,7 +295,28 @@ export async function planAssistant(
       };
     const mismatch = validateInstruction(intent, text, context.history);
     if (mismatch) return { data: { reply: mismatch } };
+    const explicitSelection = text.match(
+      /\b(?:these|the)\s+(\d+)\s+(?:selected\s+)?(?:businesses|leads|records)\b/i,
+    );
+    if (
+      intent.selection === "selected" &&
+      explicitSelection &&
+      Number(explicitSelection[1]) !== context.selectedIds.length
+    )
+      return {
+        data: {
+          reply: `You have ${context.selectedIds.length} leads selected, but requested ${explicitSelection[1]}. Adjust the selection before continuing.`,
+        },
+      };
     const command = await resolvePlan(client, user.id, intent, context, meta);
+    const country = deletionCountryGuard(
+      intent,
+      text,
+      command.pageId
+        ? meta.pages.find((p) => p.id === command.pageId)?.name
+        : undefined,
+    );
+    if (country) return { data: { reply: country } };
     options.stage?.(
       intent.action === "search" ? "Searching leads…" : "Preparing changes…",
     );

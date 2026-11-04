@@ -142,6 +142,7 @@ export function mapRows(
   csv: ReturnType<typeof parseCsv>,
   mapping: Mapping,
   cleanup: Cleanup = [],
+  preserveExtra = false,
 ) {
   if (mapping.business_name === undefined)
     throw new Error("Map the Business name column before importing.");
@@ -172,6 +173,15 @@ export function mapRows(
       const before = values[field];
       values[field] = cleanCell(field, before, cleanup);
       if (before !== values[field]) cleanedCells++;
+    }
+    if (preserveExtra) {
+      const extra = csv.headers
+        .flatMap((header, i) =>
+          used.includes(i) || !row[i]?.trim() ? [] : [`${header}: ${row[i]}`],
+        )
+        .join("\n");
+      if (extra)
+        values.notes = [values.notes, extra].filter(Boolean).join("\n");
     }
     const rawStatus = values.status.trim().toLowerCase();
     values.status = statusAliases[rawStatus] || rawStatus || "new";

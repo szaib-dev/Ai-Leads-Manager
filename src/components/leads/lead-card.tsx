@@ -1,4 +1,5 @@
 "use client";
+import { ReimportBadge } from "./reimport-badge";
 import { MapsButton } from "./maps-button";
 import { useWorkspace } from "@/components/providers";
 import { Phone, Plus, ChevronRight } from "lucide-react";
@@ -40,7 +41,9 @@ export function LeadCard({
   const { timezone } = useWorkspace();
   const tel = phoneLink(lead.phone);
   return (
-    <article className="lead-card">
+    <article
+      className={`lead-card ${lead.previouslyImported ? "previously-imported" : ""}`}
+    >
       <button className="lead-card-heading" onClick={onOpen}>
         <span className="business-avatar">{initials(lead.name)}</span>
         <span>
@@ -51,6 +54,7 @@ export function LeadCard({
         </span>
         <ChevronRight size={17} />
       </button>
+      <ReimportBadge lead={lead} onReview={onOpen} />
       <div className="lead-card-meta">
         <StatusBadge status={lead.status} />
         {progress ? (
@@ -102,7 +106,7 @@ export function LeadCard({
       )}
       <div className="lead-card-actions">
         {tel && !lead.suppressed && !lead.archived ? (
-          <Button asChild variant="outline">
+          <Button asChild>
             <SafeCallLink lead={lead}>
               <Phone size={16} />
               Call

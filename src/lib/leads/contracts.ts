@@ -69,6 +69,7 @@ export function fromDb(row: Record<string, unknown>): Lead {
     archivedTimestamp: text("archived_at") || undefined,
     updatedAt: text("updated_at"),
     importId: text("import_id") || undefined,
+    previouslyImported: row.previously_imported === true,
     suppressed: row.suppressed === true,
     archiveReason: text("archive_reason") || undefined,
     purgeAfter: text("purge_after") || undefined,

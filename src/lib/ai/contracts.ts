@@ -13,6 +13,7 @@ export const suggestionSchema = z
     mapping: z.partialRecord(z.enum(fields), z.number().int().min(0).max(99)),
     cleanup: cleanupSchema,
     explanation: z.string().max(600),
+    confidence: z.enum(["high", "review"]).optional(),
   })
   .strict();
 export type MappingSuggestion = z.infer<typeof suggestionSchema>;

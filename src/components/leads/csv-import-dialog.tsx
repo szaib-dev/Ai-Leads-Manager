@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { autoMapCsv } from "@/lib/ai/actions";
 import { csvSample, type MappingSuggestion } from "@/lib/ai/contracts";
 import type { Cleanup } from "@/lib/imports/cleanup";
-import { Upload, Check, Sparkles } from "lucide-react";
+import { Upload, Check, Sparkles, Hammer, FileCheck2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,8 @@ import {
   type Mapping,
   csvForm,
 } from "@/lib/imports/csv";
-import { importCsv, previewImport } from "@/lib/leads/actions";
+import { prepareCsvImport } from "@/lib/imports/automatic-actions";
+import { importCsv, previewImport, undoImport } from "@/lib/leads/actions";
 import type { ImportResult } from "@/lib/leads/contracts";
 import { useWorkspace } from "@/components/providers";
 import styles from "./imports.module.css";
@@ -54,45 +55,102 @@ export function CsvImportDialog({
     [busy, setBusy] = useState(false),
     [confirmed, setConfirmed] = useState(false),
     [rejectionsConfirmed, setRejectionsConfirmed] = useState(false),
-    [requestId] = useState(() => crypto.randomUUID());
+    [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [aiBusy, setAiBusy] = useState(false),
     [aiError, setAiError] = useState(""),
     [suggestion, setSuggestion] = useState<MappingSuggestion>(),
     [cleanup, setCleanup] = useState<Cleanup>([]);
   const aiGeneration = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false),
+    [preserveExtra, setPreserveExtra] = useState(false),
+    [undone, setUndone] = useState(false);
   const sample = useMemo(
     () =>
       csv && mapping.business_name !== undefined
         ? (() => {
             try {
-              return mapRows(csv, mapping, cleanup);
+              return mapRows(csv, mapping, cleanup, preserveExtra);
             } catch {
               return null;
             }
           })()
         : null,
-    [csv, mapping, cleanup],
+    [csv, mapping, cleanup, preserveExtra],
   );
   async function load(file: File) {
-    aiGeneration.current++;
+    if (busy) return;
+    const generation = ++aiGeneration.current;
+    const request = crypto.randomUUID();
+    setRequestId(request);
+    setCsv(null);
+    setText("");
+    setFileName("");
+    setMapping({});
     setSuggestion(undefined);
     setAiError("");
     setCleanup([]);
+    setPreserveExtra(false);
+    setConfirmed(false);
     setRejectionsConfirmed(false);
     setError("");
     setReview(undefined);
+    setBusy(true);
+    setDragging(false);
     try {
+      if (!/\.(csv|tsv)$/i.test(file.name))
+        throw new Error("Choose a CSV or TSV file.");
       if (file.size > MAX_CSV_BYTES)
         throw new Error("Maximum CSV size is 3.5 MB.");
       const raw = await file.text();
       const parsed = parseCsv(raw);
+      if (generation !== aiGeneration.current) return;
       setCsv(parsed);
       setText(raw);
       setFileName(file.name);
       setMapping(parsed.mapping);
+      const pageName =
+        name.trim() || file.name.replace(/\.[^.]+$/, "").slice(0, 100);
+      if (!name.trim()) setName(pageName);
+      setAiBusy(true);
+      const prepared = await prepareCsvImport({
+        text: raw,
+        fileName: file.name,
+        pageId: target || undefined,
+        requestId: request,
+        mode,
+        newName: pageName,
+      });
+      if (generation !== aiGeneration.current) return;
+      if (!prepared.data) {
+        setAiError(
+          "Automatic import is unavailable. Your file is ready for manual mapping.",
+        );
+        return;
+      }
+      if (prepared.data.suggestion) {
+        setSuggestion(prepared.data.suggestion);
+        setMapping(prepared.data.suggestion.mapping);
+        setCleanup(prepared.data.suggestion.cleanup);
+        setPreserveExtra(true);
+      }
+      if (prepared.data.reviewReason) setAiError(prepared.data.reviewReason);
+      if (prepared.data.result) {
+        setResult(prepared.data.result);
+        setRecentAiImport(prepared.data.result.id);
+        await refreshPages();
+        onImported();
+      }
     } catch (e) {
-      setCsv(null);
-      setError(e instanceof Error ? e.message : "Could not read CSV");
+      if (generation === aiGeneration.current) {
+        setAiError("Manual mapping remains available.");
+        setError(e instanceof Error ? e.message : "Could not read CSV");
+      }
+    } finally {
+      if (generation === aiGeneration.current) {
+        setBusy(false);
+        setAiBusy(false);
+      }
     }
   }
   return (
@@ -128,6 +186,33 @@ export function CsvImportDialog({
               <p className="small">Batch ID: {result.id}</p>
             </div>
             <Button
+              variant="outline"
+              disabled={busy || undone}
+              onClick={async () => {
+                if (!result) return;
+                setBusy(true);
+                try {
+                  const r = await undoImport(result.id);
+                  if (r.error) setError(r.error);
+                  else {
+                    setUndone(true);
+                    setRecentAiImport(undefined);
+                    await refreshPages();
+                    onImported();
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {undone ? "Import undone" : "Undo this import"}
+            </Button>
+            {error && (
+              <p role="alert" className={styles.error}>
+                {error}
+              </p>
+            )}
+            <Button
               onClick={() => {
                 onClose();
                 if (result.pageId !== pageId)
@@ -140,19 +225,59 @@ export function CsvImportDialog({
           </>
         ) : (
           <>
-            <label className="field-label">
-              CSV file
-              <input
-                className={styles.file}
-                type="file"
-                accept=".csv,text/csv,text/tab-separated-values"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void load(file);
-                }}
-              />
-            </label>
+            <input
+              ref={fileInput}
+              className="sr-only"
+              type="file"
+              aria-label="CSV file"
+              accept=".csv,.tsv,text/csv,text/tab-separated-values"
+              disabled={busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void load(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className={styles.dropzone}
+              data-dragging={dragging}
+              data-working={busy}
+              disabled={busy}
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!busy) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                if (busy) return;
+                if (e.dataTransfer.files.length !== 1) {
+                  setError("Drop one CSV file at a time.");
+                  return;
+                }
+                void load(e.dataTransfer.files[0]);
+              }}
+            >
+              <span className={styles.hammer}>
+                <Hammer size={28} />
+              </span>
+              <strong>
+                {busy
+                  ? aiBusy
+                    ? "Analyzing and preparing your import..."
+                    : "Preparing your file..."
+                  : fileName || "Drop your CSV here"}
+              </strong>
+              <span>
+                {busy
+                  ? "Your file stays available if AI needs review."
+                  : "or click to browse files"}
+              </span>
+              {fileName && !busy && <FileCheck2 size={18} />}
+            </button>
             <p className="small muted">
               Up to 10,000 rows · 3.5 MB · Comma, semicolon, tab, or pipe
               separated
@@ -228,8 +353,8 @@ export function CsvImportDialog({
                         )}
                       </dl>
                       <p className="small muted">
-                        Review these suggestions before applying. Unmapped
-                        columns are not imported; you can map them below.
+                        Review these suggestions before applying. You can map
+                        additional columns below or preserve them in notes.
                       </p>
                       <Button
                         variant="outline"
@@ -304,6 +429,18 @@ export function CsvImportDialog({
                   />
                   Clean formatting: trim outer spaces and normalize phone
                   spacing. Maps URLs and notes stay unchanged.
+                </label>
+                <label className={styles.confirm}>
+                  <Checkbox
+                    checked={preserveExtra}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setPreserveExtra(e.target.checked);
+                      setReview(undefined);
+                    }}
+                  />
+                  Preserve unmapped columns in notes, using their original
+                  headers and values.
                 </label>
                 <div className={styles.destination}>
                   <label className="field-label">
@@ -500,6 +637,7 @@ export function CsvImportDialog({
                       const r = await previewImport(
                         csvForm(text, mapping, {
                           cleanup: JSON.stringify(cleanup),
+                          preserveExtra: String(preserveExtra),
                         }),
                       );
                       if (r.error) setError(r.error);
@@ -532,6 +670,7 @@ export function CsvImportDialog({
                       const r = await importCsv(
                         csvForm(text, mapping, {
                           cleanup: JSON.stringify(cleanup),
+                          preserveExtra: String(preserveExtra),
                           fileName,
                           mode,
                           pageId: target,

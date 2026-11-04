@@ -94,6 +94,9 @@ function Workspace({
   const [loadId, setLoadId] = useState(conversationId);
   const [scope, setScope] = useState(initialPage ?? "all");
   const [text, setText] = useState("");
+  const [generatedSelection, setGeneratedSelection] = useState<string[] | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
@@ -196,7 +199,9 @@ function Workspace({
               assistantMessageId: retry.id,
               text: original.content,
               pageId: activePage ?? null,
-              selectedIds: selection.pageId === activePage ? selection.ids : [],
+              selectedIds:
+                generatedSelection ??
+                (selection.pageId === activePage ? selection.ids : []),
               recentImportId: recentImport,
             };
     } else {
@@ -207,10 +212,13 @@ function Workspace({
         assistantMessageId: crypto.randomUUID(),
         text: text.trim(),
         pageId: activePage ?? null,
-        selectedIds: selection.pageId === activePage ? selection.ids : [],
+        selectedIds:
+          generatedSelection ??
+          (selection.pageId === activePage ? selection.ids : []),
         recentImportId: recentImport,
       };
     }
+    setGeneratedSelection(null);
     lock.current = true;
     setBusy(true);
     setError("");
@@ -398,6 +406,7 @@ function Workspace({
   }
   function newChat() {
     if (busy) return;
+    setGeneratedSelection(null);
     setId(undefined);
     setLoadId(undefined);
     setLocal([]);
@@ -671,6 +680,21 @@ function Workspace({
                 {m.operation_id && allResults[m.operation_id] && (
                   <Operation
                     result={allResults[m.operation_id]}
+                    instruction={
+                      messages.find((parent) => parent.id === m.reply_to)
+                        ?.content ?? ""
+                    }
+                    onPrompt={(value) => {
+                      setText(value);
+                      composer.current?.focus();
+                    }}
+                    onSelect={(ids) => {
+                      setGeneratedSelection(ids);
+                      setText(
+                        `Delete these ${ids.length} selected businesses.`,
+                      );
+                      composer.current?.focus();
+                    }}
                     busy={busy || !canFetch}
                     onAction={(action, page) =>
                       void operation(allResults[m.operation_id!], action, page)

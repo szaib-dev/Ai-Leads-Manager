@@ -146,7 +146,7 @@ export async function startWorkspaceFixture() {
         return send({
           state: "claimed",
           attempt: randomUUID(),
-          previousResult: chat.last_result_id,
+          previousResult: chat.last_result_id ?? null,
         });
       }
       if (name === "ai_chat_context") {
@@ -161,6 +161,7 @@ export async function startWorkspaceFixture() {
             )
             .slice(-6),
           olderRelevant: [],
+          previousResult: null,
         });
       }
       if (name === "ai_chat_finish") {

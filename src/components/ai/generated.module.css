@@ -1,0 +1,110 @@
+.evidence {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0;
+}
+.metric {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--bg);
+  display: grid;
+  gap: 8px;
+}
+.metric > span,
+.metric > small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.metric > strong {
+  font-size: 34px;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  color: var(--accent);
+}
+.chart {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0;
+}
+.chart figcaption {
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.chart > div {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 2fr 40px;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.chart meter {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.table {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 360px;
+  overscroll-behavior: contain;
+}
+.table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+  min-width: 480px;
+}
+.table caption {
+  text-align: left;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+}
+.table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.table td small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.table td a {
+  color: var(--accent);
+}
+.import {
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.import button {
+  display: block;
+  margin-top: 12px;
+}
+.import span {
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .metric {
+    padding: 16px;
+  }
+  .table {
+    max-width: 100%;
+  }
+  .chart > div {
+    grid-template-columns: minmax(70px, 1fr) 1fr 30px;
+    gap: 6px;
+  }
+}

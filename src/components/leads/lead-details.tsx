@@ -1,4 +1,5 @@
 "use client";
+import { ReimportBadge } from "./reimport-badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { useState } from "react";
@@ -71,6 +72,7 @@ export function LeadDetails({
           {lead.category} · {lead.city}
         </DialogDescription>
         <StatusBadge status={lead.status} />
+        <ReimportBadge lead={lead} />
         <div className="detail-actions">
           {tel && !lead.suppressed && !lead.archived ? (
             <Button asChild>

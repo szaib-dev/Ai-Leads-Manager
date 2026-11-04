@@ -9,6 +9,7 @@ export const statuses = [
 ] as const;
 export type LeadStatus = (typeof statuses)[number];
 export interface Lead {
+  previouslyImported?: boolean;
   country?: string;
   updatedAt?: string;
   importId?: string;

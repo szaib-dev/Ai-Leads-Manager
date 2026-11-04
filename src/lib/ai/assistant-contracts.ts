@@ -1,6 +1,7 @@
 import { z } from "zod";
 export const actions = [
   "search",
+  "answer",
   "edit",
   "append_notes",
   "delete",
@@ -150,10 +151,19 @@ export const intentSchema = z
 export type Intent = z.infer<typeof intentSchema>;
 export const contextSchema = z
   .object({
-    pageId: z.uuid().optional(),
+    pageId: z
+      .uuid()
+      .nullish()
+      .transform((v) => v ?? undefined),
     selectedIds: z.array(z.uuid()).max(10000).default([]),
-    recentImportId: z.uuid().optional(),
-    previousResultId: z.uuid().optional(),
+    recentImportId: z
+      .uuid()
+      .nullish()
+      .transform((v) => v ?? undefined),
+    previousResultId: z
+      .uuid()
+      .nullish()
+      .transform((v) => v ?? undefined),
     history: z
       .array(
         z
@@ -197,8 +207,19 @@ export interface AiResult {
     country: string | null;
     status: string;
     page_name: string;
+    website_url?: string | null;
+    location?: string | null;
   }[];
   summary: string;
+  statistics?: { label: string; count: number }[];
+  importSummary?: {
+    id: string;
+    fileName: string;
+    imported: number;
+    duplicates: number;
+    invalid: number;
+    status: string;
+  };
   changes?: Record<string, string>;
   scope?: {
     pageId: string | null;
@@ -233,7 +254,9 @@ export function validateInstruction(
   text: string,
   history: { role: string; content: string }[] = [],
 ): string | undefined {
-  const modifies = !["search", "clarify", "refuse"].includes(intent.action);
+  const modifies = !["search", "answer", "clarify", "refuse"].includes(
+    intent.action,
+  );
   if (
     modifies &&
     /^\s*(?:show|find|search|list|count|display|which|how many|give me)\b/i.test(
@@ -283,6 +306,15 @@ export function validateInstruction(
     return "Please specify the exact status you want. I rejected a status change not supported by your instruction.";
   if (intent.action === "undo_operation" && /\b(?:csv|import)\b/i.test(text))
     return "Please specify whether to undo a CSV import or an AI operation; those affect different records.";
+  if (intent.action === "delete") {
+    if (/\bselected\b/i.test(text) && intent.selection !== "selected")
+      return "The deletion plan did not preserve your selected records. Nothing changed.";
+    if (
+      /\blatest\s+(?:csv\s+)?import\b/i.test(text) &&
+      intent.import !== "latest"
+    )
+      return "The deletion plan did not preserve your latest import scope. Nothing changed.";
+  }
   const conditions = intent.filter.groups.flatMap((g) => g.conditions);
   for (const [field, pattern] of [
     ["phone", /\b(?:no|missing|without|lack(?:ing)?)\s+(?:a\s+)?phone/i],
@@ -290,7 +322,12 @@ export function validateInstruction(
   ] as const) {
     if (
       pattern.test(text) &&
-      !conditions.some((c) => c.field === field && c.op === "missing")
+      !(modifies && !/\bor\b/i.test(text)
+        ? filterRequires(
+            intent.filter,
+            (c) => c.field === field && c.op === "missing",
+          )
+        : conditions.some((c) => c.field === field && c.op === "missing"))
     )
       return `The plan did not preserve your missing-${field} condition. Please rephrase; nothing changed.`;
   }
@@ -332,4 +369,59 @@ export function validateInstruction(
   )
     return "Please ask to archive exhausted leads with three failed attempts; successful leads must remain protected.";
   return undefined;
+}
+
+export function deletionCountryGuard(
+  intent: Intent,
+  text: string,
+  resolvedPageName?: string,
+) {
+  if (intent.action !== "delete") return;
+  const countries = [
+    {
+      cue: /\b(?:USA|United States)\b/i,
+      allowed: /^(?:USA|US|United States(?: of America)?)$/i,
+      page: /^(?:USA|US|United States(?: of America)?)(?: leads)?$/i,
+    },
+    {
+      cue: /\bPakistan(?:i)?\b/i,
+      allowed: /^Pakistan(?:i)?$/i,
+      page: /^Pakistan(?:i)?(?: leads)?$/i,
+    },
+    {
+      cue: /\bCanad(?:a|ian)\b/i,
+      allowed: /^Canad(?:a|ian)$/i,
+      page: /^Canad(?:a|ian)(?: leads)?$/i,
+    },
+  ];
+  const requested = countries.find((c) => c.cue.test(text));
+  if (
+    requested &&
+    !requested.page.test(resolvedPageName ?? "") &&
+    !filterRequires(
+      intent.filter,
+      (c) =>
+        c.field === "country" &&
+        c.op === "equals" &&
+        requested.allowed.test(c.value),
+    )
+  )
+    return "The deletion preview did not preserve the requested country. Nothing changed; specify the matching page or country.";
+}
+
+// A country in just one OR branch does not constrain the whole deletion.
+function filterRequires(
+  filter: Intent["filter"],
+  matches: (c: z.infer<typeof conditionSchema>) => boolean,
+) {
+  const groupMatches = (g: Intent["filter"]["groups"][number]) =>
+    g.logic === "and"
+      ? g.conditions.some(matches)
+      : g.conditions.every(matches);
+  return (
+    filter.groups.length > 0 &&
+    (filter.logic === "and"
+      ? filter.groups.some(groupMatches)
+      : filter.groups.every(groupMatches))
+  );
 }

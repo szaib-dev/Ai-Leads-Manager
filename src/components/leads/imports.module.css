@@ -136,3 +136,75 @@
 .destination > label {
   min-width: 0;
 }
+.dropzone {
+  width: 100%;
+  min-height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  overflow-wrap: anywhere;
+}
+.dropzone > strong {
+  font-size: 14px;
+  max-width: 100%;
+}
+.dropzone > span:not(.hammer) {
+  font-size: 12px;
+  color: var(--muted);
+}
+.dropzone:hover,
+.dropzone[data-dragging="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dropzone:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.hammer {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.dropzone[data-working="true"] .hammer svg {
+  animation: hammer-tap 0.65s ease-in-out 3;
+  transform-origin: 75% 80%;
+}
+.dropzone[data-working="true"] {
+  cursor: progress;
+}
+@keyframes hammer-tap {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  45% {
+    transform: rotate(-24deg);
+  }
+  65% {
+    transform: rotate(10deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropzone {
+    transition: none;
+  }
+  .dropzone[data-working="true"] .hammer svg {
+    animation: none;
+  }
+}

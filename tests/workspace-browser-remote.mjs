@@ -38,6 +38,8 @@ const ssr = createServerClient(url, key, {
 const base = "http://127.0.0.1:3004";
 let app, browser, owner, debugPage;
 const report = {};
+// No Answer leads are routed to Attempts by the real database.
+const pageLeadCount = local ? 31 : 30;
 async function checked(job) {
   const r = await job;
   if (r.error) throw new Error(r.error.message);
@@ -260,6 +262,10 @@ try {
     if (frame === page.mainFrame()) navigations++;
   });
   await page.goto(`${base}/dash/ai?chat=${first.conversationId}`);
+  if (!local)
+    await expect(
+      page.getByText("Matching leads across all pages", { exact: true }),
+    ).toBeVisible();
   await expect(
     page.getByRole("article", { name: "You", exact: true }),
   ).toHaveCount(2);
@@ -390,7 +396,7 @@ try {
     .getByRole("button", { name: "Next page" })
     .click();
   await expect(page.locator(".desktop-leads .pagination")).toContainText(
-    "16–30 of 31",
+    `16–30 of ${pageLeadCount}`,
   );
   const before = navigations;
   const openButton = page
@@ -408,7 +414,7 @@ try {
   assert.equal(navigations, before);
   await page.getByRole("button", { name: "Close dialog" }).click();
   await expect(page.locator(".desktop-leads .pagination")).toContainText(
-    "16–30 of 31",
+    `16–30 of ${pageLeadCount}`,
   );
   console.log("PASS: desktop pagination and status editing");
   report.desktop = {
@@ -420,11 +426,18 @@ try {
   const second = await context.newPage();
   await second.goto(`${base}/dash/pages/${pakistan}`);
   await expect(second.locator(".desktop-leads tbody tr")).toHaveCount(15);
+  const visibleBusiness = await second
+    .locator(".desktop-leads tbody tr")
+    .first()
+    .locator("strong")
+    .innerText();
   const visible = await checked(
     client
       .from("leads")
       .select("id,updated_at")
       .eq("page_id", pakistan)
+      .eq("business_name", visibleBusiness)
+      .in("status", ["new", "interested"])
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(1),
@@ -497,7 +510,7 @@ try {
     .getByRole("button", { name: "Next page" })
     .click();
   await expect(page.locator(".mobile-leads .pagination")).toContainText(
-    "16–30 of 31",
+    `16–30 of ${pageLeadCount}`,
   );
   const search = page.getByRole("textbox", { name: "Search mobile leads" });
   await search.fill("Fixture");
@@ -515,6 +528,7 @@ try {
     .first()
     .getByRole("button", { name: /Record attempt for/ })
     .click();
+  await page.getByRole("radio", { name: "Interested", exact: true }).check();
   await page
     .getByRole("button", { name: "Confirm attempt", exact: true })
     .click();

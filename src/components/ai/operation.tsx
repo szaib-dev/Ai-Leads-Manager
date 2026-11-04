@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { GeneratedEvidence } from "./generated-evidence";
 import { Button } from "@/components/ui/button";
 import type { AiResult } from "@/lib/ai/assistant-contracts";
 import styles from "./workspace.module.css";
@@ -8,8 +8,14 @@ export function Operation({
   result,
   busy,
   onAction,
+  instruction = "",
+  onPrompt,
+  onSelect,
 }: {
   result: AiResult;
+  instruction?: string;
+  onPrompt?: (text: string) => void;
+  onSelect?: (ids: string[]) => void;
   busy: boolean;
   onAction: (
     action: "confirm" | "cancel" | "undo" | "page",
@@ -42,22 +48,13 @@ export function Operation({
           ))}
         </dl>
       )}
-      {!!result.rows.length && (
-        <details>
-          <summary>View matching records</summary>
-          <div className={styles.records}>
-            {result.rows.map((row) => (
-              <Link key={row.id} href={`/dash/pages/${row.page_id}`}>
-                <strong>{row.business_name}</strong>
-                <span>
-                  {row.phone || "No phone"} · {row.country || row.page_name} ·{" "}
-                  {row.status.replaceAll("_", " ")}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </details>
-      )}
+      <GeneratedEvidence
+        result={result}
+        instruction={instruction}
+        busy={busy}
+        onPrompt={onPrompt}
+        onSelect={onSelect}
+      />
       {result.totalPages > 1 && (
         <div className={styles.actions}>
           <Button

@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
   PhoneMissed,
   Sparkles,
+  Settings2,
   Sun,
   Waves,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "@/components/providers";
+import { ApplicationSettings } from "./settings";
 import { SignOutItem } from "@/components/auth/sign-out-item";
 const nav = [
   { href: "/dash", label: "Overview", icon: LayoutDashboard },
@@ -45,6 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { pages } = useWorkspace();
   const [collapsed, setCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
   const isAi = path === "/dash/ai";
   function openAssistant() {
@@ -135,6 +138,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top">
+              <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+                <Settings2 size={16} />
+                Settings
+              </DropdownMenuItem>
               <SignOutItem />
             </DropdownMenuContent>
           </DropdownMenu>
@@ -175,6 +182,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="topbar-actions">
             <SyncIndicator />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Application settings"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings2 size={18} />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Choose theme">
@@ -274,10 +289,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Sparkles size={16} />
               AI assistant
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+              <Settings2 size={16} />
+              Settings
+            </DropdownMenuItem>
             <SignOutItem />
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
+      <ApplicationSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }
