@@ -8,3 +8,9 @@ test("invalid rows are reported, never silently repaired",()=>{const csv=parseCs
 test("rejects ambiguous mappings, malformed quotes and oversized input",()=>{assert.throws(()=>parseCsv('name,notes\nX,"unclosed'));const csv=parseCsv('name,phone\nX,123');assert.throws(()=>mapRows(csv,{business_name:0,phone:0}));assert.throws(()=>mapRows(csv,{}));assert.throws(()=>parseCsv('a'.repeat(MAX_CSV_BYTES+1)));});
 test("4001 rows parse without dropping missing phones or exact URL variations",()=>{const csv=parseCsv('name,phone,google maps url\n'+Array.from({length:4001},(_,i)=>`Business ${i},,https://maps.google.com/?cid=${i}`).join('\n'));assert.equal(mapRows(csv,csv.mapping).valid.length,4001);});
 test("accepts Google Maps variants without treating unrelated URLs as Maps identifiers",()=>{const urls=['https://www.google.com/maps/place/Example?cid=AbC','https://maps.app.goo.gl/ABC','https://maps.google.co.uk/?cid=AbC','https://example.com/maps','https://google.com.evil.test/maps'];const csv=parseCsv('name,maps url\n'+urls.map((url,i)=>`Business ${i},${url}`).join('\n'));const result=mapRows(csv,csv.mapping);assert.equal(result.valid.length,3);assert.equal(result.invalid.length,2);assert.equal(result.valid[0].google_maps_url,urls[0]);});
+
+test("80 exported Not Contacted rows import with deterministic mapping while unknown statuses stay invalid",()=>{
+ const c=parseCsv('company_name,business_phone,official_website_url,outreach_status,editable_notes\n'+Array.from({length:80},(_,i)=>`Fixture ${i},123,https://example.com,Not Contacted,note`).join('\n'));
+ const r=mapRows(c,c.mapping);assert.equal(r.valid.length,80);assert.equal(r.invalid.length,0);assert.equal(r.valid[0].status,'new');assert.equal(r.valid[0].phone,'123');assert.equal(r.valid[0].notes,'note');
+ const invalid=parseCsv('name,status\nFixture,Unknown status');assert.equal(mapRows(invalid,invalid.mapping).invalid[0].row,2);
+});

@@ -15,6 +15,8 @@ import {
 } from "./assistant-contracts";
 import { aiConfigured, aiServerToken } from "./config";
 import type { ProviderUsage } from "./deepseek";
+import { analyzeResult } from "./relevance";
+import { isRelevanceQuestion } from "./relevance-contracts";
 type Client = Awaited<ReturnType<typeof databaseContext>>["client"];
 type Rpc =
   | "ai_context"
@@ -42,6 +44,15 @@ export function message(e: unknown) {
     String(e.digest).startsWith("NEXT_REDIRECT")
   )
     throw e;
+  if (
+    e instanceof Error &&
+    /(?:column|function|relation) .*does not exist|schema cache|permission denied|violates .*constraint|syntax error|invalid input syntax|SQLSTATE|PGRST/i.test(
+      e.message,
+    )
+  ) {
+    console.error("AI database request failed", e);
+    return "Chat is temporarily unavailable. Please retry shortly; your conversations are saved.";
+  }
   return e instanceof z.ZodError
     ? "The request could not be validated. Please retry; no lead changes were made."
     : e instanceof Error
@@ -222,17 +233,61 @@ export async function planAssistant(
       .eq("request_id", requestId)
       .eq("source", "ai")
       .maybeSingle();
-    if (existing.data)
+    if (existing.data) {
+      const result = await maybeExecute(
+        client,
+        await rpc<AiResult>(client, "ai_plan_result", {
+          p_id: existing.data.id,
+        }),
+      );
+      if (
+        result.count > 0 &&
+        ((result.analysis && !result.analysis.items.length) ||
+          (!result.analysis && isRelevanceQuestion(text)))
+      ) {
+        options.stage?.("Retrying business relevance analysis…");
+        return {
+          data: {
+            result: await analyzeResult(
+              client,
+              result,
+              result.analysis?.criteria ?? text,
+              0,
+              options.signal,
+            ),
+          },
+        };
+      }
+      return { data: { result } };
+    }
+    if (isRelevanceQuestion(text)) {
+      options.stage?.("Finding businesses to analyze…");
+      const plan = await rpc<AiResult>(client, "ai_stage", {
+        p_request: requestId,
+        p_command: {
+          action: "search",
+          pageId: context.pageId ?? null,
+          importId: null,
+          selectedIds: context.selectedIds,
+          previousId:
+            !context.selectedIds.length &&
+            /\b(?:these|those|previous)\b/i.test(text)
+              ? (context.previousResultId ?? null)
+              : null,
+          undoId: null,
+          filter: { logic: "and", groups: [] },
+          changes: {},
+          destinationId: null,
+        },
+        p_token: aiServerToken(),
+      });
+      options.stage?.("Analyzing business relevance in a bounded batch…");
       return {
         data: {
-          result: await maybeExecute(
-            client,
-            await rpc<AiResult>(client, "ai_plan_result", {
-              p_id: existing.data.id,
-            }),
-          ),
+          result: await analyzeResult(client, plan, text, 0, options.signal),
         },
       };
+    }
     if (/^how many (?:total )?leads do i have[?.! ]*$/i.test(text)) {
       options.stage?.("Searching leads…");
       const plan = await rpc<AiResult>(client, "ai_stage", {
@@ -281,6 +336,26 @@ export async function planAssistant(
     options.signal?.throwIfAborted();
     usage = answer.usage;
     const intent = intentSchema.parse(answer.intent);
+    if (intent.action === "analyze") {
+      const command = await resolvePlan(
+        client,
+        user.id,
+        { ...intent, action: "search", changes: {} },
+        context,
+        meta,
+      );
+      const plan = await rpc<AiResult>(client, "ai_stage", {
+        p_request: requestId,
+        p_command: command,
+        p_token: aiServerToken(),
+      });
+      options.stage?.("Analyzing business relevance in a bounded batch…");
+      return {
+        data: {
+          result: await analyzeResult(client, plan, text, 0, options.signal),
+        },
+      };
+    }
     if (
       intent.action === "answer" ||
       intent.action === "clarify" ||

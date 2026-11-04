@@ -1,6 +1,7 @@
 import { z } from "zod";
 export const actions = [
   "search",
+  "analyze",
   "answer",
   "edit",
   "append_notes",
@@ -185,11 +186,12 @@ export function forbiddenCommand(text: string) {
 }
 export function needsApproval(mode: PermissionMode, action: string) {
   return (
-    action !== "search" &&
+    !["search", "analyze"].includes(action) &&
     (mode === "strict" || (mode === "balanced" && action !== "append_notes"))
   );
 }
 export interface AiResult {
+  analysis?: import("./relevance-contracts").Relevance;
   id: string;
   action: string;
   status: string;
@@ -254,7 +256,7 @@ export function validateInstruction(
   text: string,
   history: { role: string; content: string }[] = [],
 ): string | undefined {
-  const modifies = !["search", "answer", "clarify", "refuse"].includes(
+  const modifies = !["search", "analyze", "answer", "clarify", "refuse"].includes(
     intent.action,
   );
   if (

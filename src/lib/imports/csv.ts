@@ -46,8 +46,22 @@ const aliases: Record<ImportField, string[]> = {
     "companyname",
     "title",
   ],
-  phone: ["phone", "phonenumber", "telephone", "mobile", "contactnumber"],
-  website_url: ["website", "websiteurl", "site", "url", "domain"],
+  phone: [
+    "phone",
+    "phonenumber",
+    "telephone",
+    "mobile",
+    "contactnumber",
+    "businessphone",
+  ],
+  website_url: [
+    "website",
+    "websiteurl",
+    "site",
+    "url",
+    "domain",
+    "officialwebsiteurl",
+  ],
   google_maps_url: [
     "googlemapsurl",
     "googlemaps",
@@ -59,8 +73,8 @@ const aliases: Record<ImportField, string[]> = {
   ],
   country: ["country", "countryname"],
   location: ["location", "city", "address", "fulladdress"],
-  notes: ["notes", "note", "description", "comments"],
-  status: ["status", "leadstatus"],
+  notes: ["notes", "note", "description", "comments", "editablenotes"],
+  status: ["status", "leadstatus", "outreachstatus"],
 };
 export function parseCsv(text: string) {
   if (new TextEncoder().encode(text).length > MAX_CSV_BYTES)
@@ -131,11 +145,15 @@ export const importRowSchema = z.object({
 });
 export type ImportRow = z.infer<typeof importRowSchema>;
 const statusAliases: Record<string, string> = {
+  "not contacted": "new",
+  not_contacted: "new",
+  uncontacted: "new",
   "no answer": "no_answer",
   "not interested": "not_interested",
   "follow-up": "follow_up",
   "follow up": "follow_up",
   "callback requested": "follow_up",
+  "they'll call me back": "awaiting_callback",
   "meeting booked": "meeting_booked",
 };
 export function mapRows(

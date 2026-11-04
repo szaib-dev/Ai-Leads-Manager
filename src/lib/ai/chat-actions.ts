@@ -14,6 +14,112 @@ import {
 import type { ActionResult } from "@/lib/leads/contracts";
 import type { Conversation, ChatMessage, Thread } from "./chat-contracts";
 import type { AiResult } from "./assistant-contracts";
+import { analyzeResult } from "./relevance";
+export async function deleteConversation(
+  id: string,
+): Promise<ActionResult<true>> {
+  try {
+    const { client } = await databaseContext();
+    const r = await client.rpc(
+      "delete_ai_conversation" as never,
+      { p_id: z.uuid().parse(id) } as never,
+    );
+    if (r.error) throw new Error(r.error.message);
+    return { data: true };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+export async function recordChatImport(input: {
+  conversationId: string;
+  userId: string;
+  assistantId: string;
+  importId: string;
+}): Promise<ActionResult<true>> {
+  try {
+    const p = z
+      .object({
+        conversationId: z.uuid(),
+        userId: z.uuid(),
+        assistantId: z.uuid(),
+        importId: z.uuid(),
+      })
+      .strict()
+      .parse(input);
+    const { client } = await databaseContext();
+    const r = await client.rpc(
+      "record_chat_import" as never,
+      {
+        p_conversation: p.conversationId,
+        p_user: p.userId,
+        p_assistant: p.assistantId,
+        p_import: p.importId,
+      } as never,
+    );
+    if (r.error) throw new Error(r.error.message);
+    return { data: true };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+export async function undoChatImport(
+  conversationId: string,
+  importId: string,
+): Promise<ActionResult<true>> {
+  try {
+    const { client } = await databaseContext();
+    const r = await client.rpc(
+      "undo_chat_import" as never,
+      {
+        p_conversation: z.uuid().parse(conversationId),
+        p_import: z.uuid().parse(importId),
+      } as never,
+    );
+    if (r.error) throw new Error(r.error.message);
+    return { data: true };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+export async function analyzeChatBatch(
+  conversationId: string,
+  operationId: string,
+  offset: number,
+): Promise<ActionResult<AiResult>> {
+  try {
+    const { client, user } = await databaseContext();
+    conversationId = z.uuid().parse(conversationId);
+    operationId = z.uuid().parse(operationId);
+    offset = z.number().int().min(0).max(10000).multipleOf(10).parse(offset);
+    const associated = await client
+      .from("ai_chat_messages")
+      .select("id")
+      .eq("owner_id", user.id)
+      .eq("conversation_id", conversationId)
+      .eq("operation_id", operationId)
+      .limit(1);
+    if (associated.error || !associated.data?.length)
+      throw new Error("Analysis is not attached to this conversation");
+    const page = await client.rpc("ai_plan_result", {
+      p_id: operationId,
+      p_offset: offset,
+    });
+    if (page.error) throw new Error(page.error.message);
+    const result = page.data as unknown as AiResult;
+    if (!result.analysis || offset >= result.count)
+      throw new Error("Analysis batch unavailable");
+    return {
+      data: await analyzeResult(
+        client,
+        result,
+        result.analysis.criteria,
+        offset,
+      ),
+    };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
 export async function conversations(
   before?: string,
 ): Promise<ActionResult<{ rows: Conversation[]; more: boolean }>> {
@@ -52,7 +158,9 @@ export async function conversationThread(
     if (c.error || !c.data) throw new Error("Conversation unavailable");
     let q = client
       .from("ai_chat_messages")
-      .select("id,role,content,status,error,reply_to,operation_id,created_at")
+      .select(
+        "id,role,content,status,error,reply_to,operation_id,created_at,artifact",
+      )
       .eq("owner_id", user.id)
       .eq("conversation_id", id)
       .order("created_at", { ascending: false })
@@ -68,12 +176,17 @@ export async function conversationThread(
     if (parentId && !rows.some((m) => m.id === parentId)) {
       const parent = await client
         .from("ai_chat_messages")
-        .select("id,role,content,status,error,reply_to,operation_id,created_at")
+        .select(
+          "id,role,content,status,error,reply_to,operation_id,created_at,artifact",
+        )
         .eq("owner_id", user.id)
         .eq("conversation_id", id)
         .eq("id", parentId)
         .maybeSingle();
-      if (parent.data) rows.unshift(parent.data as ChatMessage);
+      if (parent.data) rows.unshift(parent.data as unknown as ChatMessage);
+    }
+    for (const row of rows) {
+      if (row.error) row.error = message(new Error(row.error));
     }
     const ids = [
       ...new Set(rows.flatMap((m) => (m.operation_id ? [m.operation_id] : []))),

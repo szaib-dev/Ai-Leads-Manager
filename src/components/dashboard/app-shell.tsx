@@ -38,6 +38,7 @@ const nav = [
   { href: "/dash/pages", label: "Lead pages", icon: Folder },
   { href: "/dash/attempts", label: "Attempts", icon: PhoneMissed },
   { href: "/dash/followups", label: "Follow-ups", icon: CalendarClock },
+  { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: CalendarClock },
   { href: "/dash/activity", label: "Activity", icon: History },
   { href: "/dash/archive", label: "Archive", icon: Archive },
   { href: "/dash/ai", label: "AI workspace", icon: Sparkles },
@@ -148,85 +149,87 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="collapse-button"
-              onClick={() => setCollapsed(!collapsed)}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? (
-                <PanelLeftOpen size={18} />
-              ) : (
-                <PanelLeftClose size={18} />
+        {!isAi && (
+          <header className="topbar">
+            <div className="breadcrumb">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="collapse-button"
+                onClick={() => setCollapsed(!collapsed)}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? (
+                  <PanelLeftOpen size={18} />
+                ) : (
+                  <PanelLeftClose size={18} />
+                )}
+              </Button>
+              <Link
+                href="/dash"
+                className="mobile-brand"
+                aria-label="Folio overview"
+              >
+                <Waves size={23} />
+              </Link>
+              <span className="breadcrumb-root">Workspace</span>
+              <ChevronRight size={13} />
+              <span>{current.label}</span>
+              {page && (
+                <>
+                  <ChevronRight size={13} />
+                  <span className="breadcrumb-page">{page.name}</span>
+                </>
               )}
-            </Button>
-            <Link
-              href="/dash"
-              className="mobile-brand"
-              aria-label="Folio overview"
-            >
-              <Waves size={23} />
-            </Link>
-            <span className="breadcrumb-root">Workspace</span>
-            <ChevronRight size={13} />
-            <span>{current.label}</span>
-            {page && (
-              <>
-                <ChevronRight size={13} />
-                <span className="breadcrumb-page">{page.name}</span>
-              </>
-            )}
-          </div>
-          <div className="topbar-actions">
-            <SyncIndicator />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Application settings"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Settings2 size={18} />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Choose theme">
-                  <Sun size={18} className="light-theme-icon" />
-                  <Moon size={18} className="dark-theme-icon" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {[
-                  { value: "light", label: "Light", icon: Sun },
-                  { value: "dark", label: "Dark", icon: Moon },
-                  { value: "system", label: "System", icon: Monitor },
-                ].map(({ value, label, icon: Icon }) => (
-                  <DropdownMenuItem
-                    key={value}
-                    onSelect={() => setTheme(value)}
-                  >
-                    <Icon size={16} />
-                    {label}
-                    <span className="menu-check">
-                      {theme === value ? "✓" : ""}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="outline"
-              className="header-ai"
-              onClick={() => openAssistant()}
-            >
-              <Sparkles size={15} />
-              AI assistant
-            </Button>
-            <span className="header-avatar">SB</span>
-          </div>
-        </header>
+            </div>
+            <div className="topbar-actions">
+              <SyncIndicator />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Application settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings2 size={18} />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Choose theme">
+                    <Sun size={18} className="light-theme-icon" />
+                    <Moon size={18} className="dark-theme-icon" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {[
+                    { value: "light", label: "Light", icon: Sun },
+                    { value: "dark", label: "Dark", icon: Moon },
+                    { value: "system", label: "System", icon: Monitor },
+                  ].map(({ value, label, icon: Icon }) => (
+                    <DropdownMenuItem
+                      key={value}
+                      onSelect={() => setTheme(value)}
+                    >
+                      <Icon size={16} />
+                      {label}
+                      <span className="menu-check">
+                        {theme === value ? "✓" : ""}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="outline"
+                className="header-ai"
+                onClick={() => openAssistant()}
+              >
+                <Sparkles size={15} />
+                AI assistant
+              </Button>
+              <span className="header-avatar">SB</span>
+            </div>
+          </header>
+        )}
         <main
           id="main-content"
           className={isAi ? "main-content ai-main-content" : "main-content"}
@@ -273,6 +276,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top">
+            <DropdownMenuItem asChild><Link href="/dash/callbacks"><CalendarClock size={16} />Awaiting Callbacks</Link></DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/dash/activity">
                 <History size={16} />

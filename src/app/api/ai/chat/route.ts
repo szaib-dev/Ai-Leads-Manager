@@ -131,6 +131,24 @@ export async function POST(request: Request) {
               summary: result.summary,
               statistics: result.statistics,
               importSummary: result.importSummary,
+              analysis: result.analysis
+                ? {
+                    criteria: result.analysis.criteria,
+                    reviewed: result.analysis.items.length,
+                    total: result.analysis.total,
+                    sources: result.analysis.sources,
+                    classifications: result.analysis.items.map(
+                      ({ classification, reason, evidence, name }) => ({
+                        name,
+                        classification,
+                        reason,
+                        evidence,
+                      }),
+                    ),
+                    notice:
+                      "Advisory inference from supplied names, URL text and notes only; website sources read are listed separately. No relevance-based deletion was executed.",
+                  }
+                : undefined,
             }
           : { question: planned.data?.reply ?? "Please clarify your request." };
         const messages = responseMessages(input.text, evidence);

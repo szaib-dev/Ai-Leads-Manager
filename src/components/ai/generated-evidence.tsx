@@ -6,18 +6,21 @@ import { Button } from "@/components/ui/button";
 import type { AiResult } from "@/lib/ai/assistant-contracts";
 import { presentationFor } from "@/lib/ai/presentation";
 import styles from "./generated.module.css";
+import { SelectionDelete } from "@/components/leads/selection-delete";
 export function GeneratedEvidence({
   result,
   instruction,
   onPrompt,
   onSelect,
   busy,
+  onChanged = () => {},
 }: {
   result: AiResult;
   instruction: string;
   onPrompt?: (text: string) => void;
   onSelect?: (ids: string[]) => void;
   busy: boolean;
+  onChanged?: () => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const blocks = presentationFor(result, instruction);
@@ -78,7 +81,30 @@ export function GeneratedEvidence({
               </caption>
               <thead>
                 <tr>
-                  <th aria-label="Select records" />
+                  <th>
+                    <Checkbox
+                      aria-label="Select visible leads"
+                      disabled={busy}
+                      checked={
+                        !!result.rows.length &&
+                        result.rows.every((r) => selected.includes(r.id))
+                      }
+                      onChange={(e) =>
+                        setSelected((ids) =>
+                          e.target.checked
+                            ? [
+                                ...new Set([
+                                  ...ids,
+                                  ...result.rows.map((r) => r.id),
+                                ]),
+                              ]
+                            : ids.filter(
+                                (id) => !result.rows.some((r) => r.id === id),
+                              ),
+                        )
+                      }
+                    />
+                  </th>
                   <th>Business</th>
                   <th>Phone</th>
                   <th>Country / page</th>
@@ -124,6 +150,13 @@ export function GeneratedEvidence({
             >
               Review deletion of {selected.length} selected
             </Button>
+          )}
+          {!!selected.length && (
+            <SelectionDelete
+              key={[...selected].sort().join()}
+              ids={selected}
+              onChanged={onChanged}
+            />
           )}
         </>
       )}

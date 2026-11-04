@@ -40,6 +40,7 @@ export const statusToDb: Record<string, string> = {
   "Not Interested": "not_interested",
   "Follow-up": "follow_up",
   "Meeting Booked": "meeting_booked",
+  "Awaiting Callback": "awaiting_callback",
 };
 export function fromDb(row: Record<string, unknown>): Lead {
   const text = (key: string) =>

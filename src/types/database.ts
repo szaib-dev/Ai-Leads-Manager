@@ -117,6 +117,7 @@ export type Database = {
       }
       ai_chat_messages: {
         Row: {
+          artifact: Json | null
           attempt_id: string | null
           content: string
           conversation_id: string
@@ -134,6 +135,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifact?: Json | null
           attempt_id?: string | null
           content?: string
           conversation_id: string
@@ -151,6 +153,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifact?: Json | null
           attempt_id?: string | null
           content?: string
           conversation_id?: string
@@ -1094,6 +1097,7 @@ export type Database = {
         | "not_interested"
         | "callback_requested"
         | "meeting_booked"
+        | "awaiting_callback"
         | "other"
       event_kind: "call_attempt" | "followup_scheduled" | "meeting_scheduled"
       import_status:
@@ -1110,6 +1114,7 @@ export type Database = {
         | "not_interested"
         | "follow_up"
         | "meeting_booked"
+        | "awaiting_callback"
       operation_kind:
         | "lead_update"
         | "lead_bulk_status"
@@ -1262,6 +1267,7 @@ export const Constants = {
         "not_interested",
         "callback_requested",
         "meeting_booked",
+        "awaiting_callback",
         "other",
       ],
       event_kind: ["call_attempt", "followup_scheduled", "meeting_scheduled"],
@@ -1280,6 +1286,7 @@ export const Constants = {
         "not_interested",
         "follow_up",
         "meeting_booked",
+        "awaiting_callback",
       ],
       operation_kind: [
         "lead_update",

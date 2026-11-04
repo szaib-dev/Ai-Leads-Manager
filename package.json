@@ -18,6 +18,7 @@
     "test:ai": "node --conditions=react-server --import tsx --test tests/ai-provider.test.ts tests/ai-stream.test.ts",
     "test:workspace-ui": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/test-workspace-ui.mjs",
     "test:workspace-live": "node --env-file-if-exists=.env --env-file-if-exists=.env.local tests/workspace-browser-remote.mjs",
+    "test:chat-tools-live": "node --env-file-if-exists=.env --env-file-if-exists=.env.local tests/chat-tools-browser-remote.mjs",
     "test:intelligence-live": "node --env-file-if-exists=.env --env-file-if-exists=.env.local tests/intelligence-browser-remote.mjs"
   },
   "dependencies": {

@@ -1,0 +1,129 @@
+.tool {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 14px 0;
+  background: var(--surface);
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tool p {
+  margin: 10px 0;
+}
+.toolTitle,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toolTitle strong {
+  flex: 1;
+  min-width: 0;
+}
+.mapping {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.mapping label {
+  min-width: 0;
+}
+.mapping button {
+  max-width: 100%;
+  width: 100%;
+}
+.tool summary {
+  cursor: pointer;
+  padding: 12px 0;
+  min-height: 44px;
+}
+.table {
+  overflow-x: auto;
+  min-width: 0;
+}
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.table td,
+.table th {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table caption {
+  text-align: left;
+  padding: 10px 0;
+  font-weight: 600;
+}
+.option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  margin: 8px 0;
+}
+.progress {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--accent);
+}
+.progress svg {
+  animation: tap 0.7s ease-in-out 3;
+}
+@keyframes tap {
+  50% {
+    transform: rotate(-25deg);
+  }
+}
+.classification {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--accent-soft);
+  border-radius: 6px;
+  color: var(--accent);
+}
+.uncertain {
+  color: var(--muted);
+}
+.evidence {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.analysisStats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.analysisStats span {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+@media (max-width: 600px) {
+  .tool {
+    padding: 12px;
+  }
+  .mapping {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .table table {
+    min-width: 420px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress svg {
+    animation: none;
+  }
+}
+
+.tool[data-state="uploading"], .tool[data-state="processing"] { animation: attachment-pulse 1.8s ease-in-out infinite; }
+@keyframes attachment-pulse { 50% { border-color: var(--accent); } }
+@media (prefers-reduced-motion: reduce) { .tool { animation: none !important; } }

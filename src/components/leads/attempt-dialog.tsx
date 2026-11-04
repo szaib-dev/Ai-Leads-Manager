@@ -50,6 +50,7 @@ export function AttemptDialog({
     [requestId] = useState(() => crypto.randomUUID());
   const submitting = useRef(false);
   const icons = {
+    awaiting_callback: CalendarClock,
     no_answer: PhoneMissed,
     voicemail: Voicemail,
     interested: Heart,
@@ -58,7 +59,9 @@ export function AttemptDialog({
     meeting_booked: Handshake,
   };
   const scheduled =
-    outcome === "callback_requested" || outcome === "meeting_booked";
+    outcome === "callback_requested" ||
+    outcome === "meeting_booked" ||
+    outcome === "awaiting_callback";
   const blocked = lead?.suppressed || lead?.archived;
   return (
     <Dialog
@@ -110,19 +113,21 @@ export function AttemptDialog({
                 attempts: lead.attempts + 1,
                 failedAttempts: failed ? lead.failedAttempts + 1 : 0,
                 status:
-                  outcome === "callback_requested"
-                    ? "Follow-up"
-                    : outcome === "meeting_booked"
-                      ? "Meeting Booked"
-                      : outcome === "interested"
-                        ? "Interested"
-                        : outcome === "not_interested"
-                          ? "Not Interested"
-                          : outcome === "voicemail"
-                            ? "Voicemail"
-                            : outcome === "no_answer"
-                              ? "No Answer"
-                              : lead.status,
+                  outcome === "awaiting_callback"
+                    ? "Awaiting Callback"
+                    : outcome === "callback_requested"
+                      ? "Follow-up"
+                      : outcome === "meeting_booked"
+                        ? "Meeting Booked"
+                        : outcome === "interested"
+                          ? "Interested"
+                          : outcome === "not_interested"
+                            ? "Not Interested"
+                            : outcome === "voicemail"
+                              ? "Voicemail"
+                              : outcome === "no_answer"
+                                ? "No Answer"
+                                : lead.status,
               };
               if (outcome === "not_interested") {
                 optimistic.archived = true;
@@ -135,7 +140,9 @@ export function AttemptDialog({
                 requestId,
                 outcome,
                 notes,
-                date: scheduled ? String(f.get("followupDate")) : undefined,
+                date: scheduled
+                  ? String(f.get("followupDate") || "") || undefined
+                  : undefined,
                 time: scheduled
                   ? String(f.get("followupTime") || "") || undefined
                   : undefined,
@@ -196,8 +203,10 @@ export function AttemptDialog({
                 <input
                   type="date"
                   name="followupDate"
-                  required
-                  defaultValue={dayInZone(timezone)}
+                  required={outcome !== "awaiting_callback"}
+                  defaultValue={
+                    outcome === "awaiting_callback" ? "" : dayInZone(timezone)
+                  }
                   disabled={busy}
                 />
               </label>

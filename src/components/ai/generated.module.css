@@ -48,7 +48,7 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  max-height: 360px;
+
   overscroll-behavior: contain;
 }
 .table table {

@@ -81,7 +81,7 @@ try {
   // This statement starts while the original is uncommitted and has an older outer query snapshot.
   sql(`${auth}insert into public.leads(page_id,business_name,google_maps_url,notes)
   values('a0000000-0000-4000-8000-000000000002','Concurrent upsert','https://www.google.com/maps?cid=concurrency','Overwritten')
-  on conflict(owner_id,google_maps_url) where google_maps_url is not null and maps_active do update set notes=excluded.notes;commit;`);
+  on conflict(owner_id,google_maps_url) where google_maps_url is not null and maps_active and deleted_at is null do update set notes=excluded.notes;commit;`);
   assert.ok(
     performance.now() - waitStarted >= 1000,
     "The second INSERT must actually wait for the original transaction, not run after commit",

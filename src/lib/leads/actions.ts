@@ -174,6 +174,7 @@ const editSchema = z
         "not_interested",
         "follow_up",
         "meeting_booked",
+        "awaiting_callback",
       ])
       .optional(),
   })
@@ -280,6 +281,8 @@ export async function previewImport(form: FormData): Promise<
     valid: number;
     invalid: { row: number; message: string }[];
     duplicates: number;
+    previouslyImported: number;
+    classifications: { row: number; kind: string }[];
   }>
 > {
   try {
@@ -293,15 +296,46 @@ export async function previewImport(form: FormData): Promise<
       cleanupSchema.parse(JSON.parse(String(form.get("cleanup") || "[]"))),
       form.get("preserveExtra") === "true",
     );
-    const duplicates = await rpc("preview_import", {
-      p_urls: parsed.valid.map((r) => r.google_maps_url || null),
+    const { client } = await databaseContext();
+    const classification = await client.rpc(
+      "import_row_classifications" as never,
+      { p_urls: parsed.valid.map((r) => r.google_maps_url || null) } as never,
+    );
+    if (classification.error) throw new Error(classification.error.message);
+    const rows = classification.data as unknown as {
+      index: number;
+      active: boolean;
+      previous: boolean;
+    }[];
+    const validRowNumbers = parseCsv(text)
+      .rows.map((_, i) => i + 2)
+      .filter((n) => !parsed.invalid.some((r) => r.row === n));
+    const seen = new Set<string>();
+    let duplicates = 0;
+    const classifications = rows.map((r) => {
+      const url = parsed.valid[r.index].google_maps_url;
+      const duplicate = !!url && (r.active || seen.has(url));
+      if (url) seen.add(url);
+      if (duplicate) duplicates++;
+      return {
+        row: validRowNumbers[r.index],
+        kind: r.active
+          ? "Active duplicate"
+          : duplicate
+            ? "Repeated Maps URL in file"
+            : r.previous
+              ? "Previously imported (importable)"
+              : "Ready",
+      };
     });
     return {
       data: {
         total: parsed.total,
         valid: parsed.valid.length,
         invalid: parsed.invalid,
-        duplicates: Number(duplicates),
+        duplicates,
+        previouslyImported: rows.filter((r) => r.previous && !r.active).length,
+        classifications,
       },
     };
   } catch (error) {

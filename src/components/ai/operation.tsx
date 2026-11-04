@@ -3,6 +3,7 @@ import { GeneratedEvidence } from "./generated-evidence";
 import { Button } from "@/components/ui/button";
 import type { AiResult } from "@/lib/ai/assistant-contracts";
 import styles from "./workspace.module.css";
+import { RelevanceEvidence } from "./relevance-evidence";
 
 export function Operation({
   result,
@@ -11,11 +12,15 @@ export function Operation({
   instruction = "",
   onPrompt,
   onSelect,
+  onAnalysisPage,
+  onChanged = () => {},
 }: {
   result: AiResult;
   instruction?: string;
   onPrompt?: (text: string) => void;
   onSelect?: (ids: string[]) => void;
+  onAnalysisPage?: (offset: number) => void;
+  onChanged?: () => void;
   busy: boolean;
   onAction: (
     action: "confirm" | "cancel" | "undo" | "page",
@@ -48,14 +53,24 @@ export function Operation({
           ))}
         </dl>
       )}
-      <GeneratedEvidence
-        result={result}
-        instruction={instruction}
-        busy={busy}
-        onPrompt={onPrompt}
-        onSelect={onSelect}
-      />
-      {result.totalPages > 1 && (
+      {result.analysis ? (
+        <RelevanceEvidence
+          analysis={result.analysis}
+          busy={busy}
+          onPage={onAnalysisPage}
+          onChanged={onChanged}
+        />
+      ) : (
+        <GeneratedEvidence
+          result={result}
+          instruction={instruction}
+          busy={busy}
+          onPrompt={onPrompt}
+          onSelect={onSelect}
+          onChanged={onChanged}
+        />
+      )}
+      {!result.analysis && result.totalPages > 1 && (
         <div className={styles.actions}>
           <Button
             variant="outline"

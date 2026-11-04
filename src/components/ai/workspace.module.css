@@ -118,9 +118,9 @@
   scrollbar-gutter: stable;
 }
 .column {
-  max-width: 850px;
+  max-width: 1400px;
   margin: auto;
-  padding: 24px 28px 32px;
+  padding: 16px 24px 24px;
   overflow-wrap: anywhere;
 }
 .empty {
@@ -284,7 +284,7 @@
 .composerArea {
   flex-shrink: 0;
   width: 100%;
-  max-width: 850px;
+  max-width: 1400px;
   padding: 12px 28px 14px;
   margin: 0 auto;
   position: relative;
@@ -528,3 +528,152 @@
     right: 16px;
   }
 }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 16px;
+  min-height: 50px;
+}
+.toolbar > button {
+  min-height: 40px;
+}
+.toolbar > button[role="combobox"] {
+  min-width: 0;
+  max-width: 260px;
+  width: clamp(110px, 24vw, 260px);
+  font-size: 12px;
+}
+.toolbarSpace {
+  flex: 1;
+}
+.historyRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.historyRow > button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  min-height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+.historyRow > button:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.historyRow > button:first-child:hover,
+.historyRow > button[aria-current] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.historyRow > button:last-child {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.workspace[data-dragging="true"] {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+.dropHint {
+  padding: 10px;
+  color: var(--accent);
+  font-size: 12px;
+}
+.composerArea {
+  padding-top: 6px;
+  padding-bottom: 8px;
+}
+.composer textarea {
+  min-height: 42px;
+}
+.composer > div > span {
+  flex: 1;
+}
+.empty {
+  padding: clamp(10px, 3vh, 32px) 0 16px;
+}
+.eyebrow {
+  display: none;
+}
+.messageLabel {
+  margin-bottom: 4px;
+}
+@media (max-width: 600px) {
+  .toolbar {
+    padding: 4px 8px;
+    gap: 2px;
+  }
+  .toolbar > button[role="combobox"] {
+    max-width: 145px;
+    width: clamp(105px, 32vw, 145px);
+  }
+  .toolbar > button {
+    min-width: 38px;
+    width: auto;
+  }
+  .column {
+    padding: 12px;
+  }
+  .composerArea {
+    padding: 6px 10px max(8px, env(safe-area-inset-bottom));
+  }
+  .empty .mark {
+    padding: 10px;
+  }
+  .empty h1 {
+    font-size: 26px;
+  }
+  .composer textarea {
+    min-height: 40px;
+  }
+}
+
+.compactSync {
+  display: inline-flex;
+}
+.compactSync button {
+  font-size: 0;
+  gap: 0;
+  min-width: 20px;
+  padding: 0;
+}
+.compactSync button span {
+  margin: 0;
+}
+.compactSync a {
+  font-size: 10px;
+}
+.compactSync :global(.demo-label) {display:inline-flex!important;}
+.composer {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:6px;align-items:end;padding:8px;}
+.composer textarea {grid-column:2;grid-row:1;min-height:44px;padding:8px 4px;}
+.composer > div {display:contents;}
+.composer > div > span {display:none;}
+.composer button[type="button"] {grid-column:1;grid-row:1;}
+.composer button[type="submit"] {grid-column:3;grid-row:1;}
+@media (max-width: 400px) {
+  .toolbarSpace {
+    display: none;
+  }
+  .compactSync {
+    margin-left: auto;
+  }
+}
+
+.composerArea { max-width: 936px; }
+.answer > .messageLabel, .answer > .markdown, .answer > .error { max-width: 880px; margin-left: auto; margin-right: auto; }
+.user { margin-right: max(0px, calc((100% - 880px) / 2)); max-width: min(85%, 880px); }
+.viewport { overflow-x: hidden; }

@@ -1,5 +1,6 @@
 "use client";
 import { ReimportBadge } from "./reimport-badge";
+import { SelectionDelete } from "./selection-delete";
 import { MapsButton } from "./maps-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
@@ -284,11 +285,13 @@ export function LeadWorkspace({
         )}
         {aiIds.length > 0 && (
           <div className="active-filter-bar">
-            <span>
-              {aiIds.length} selected for AI · Open the AI assistant to use this
-              selection.
-            </span>
+            <span>{aiIds.length} selected</span>
             <button onClick={clearAiSelection}>Clear selection</button>
+            <SelectionDelete
+              key={[...aiIds].sort().join()}
+              ids={aiIds}
+              onChanged={refresh}
+            />
           </div>
         )}
         {remote.loading ? (

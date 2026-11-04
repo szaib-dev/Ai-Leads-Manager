@@ -544,17 +544,27 @@ export function CsvImportDialog({
                     <strong>
                       Review: {review.valid - review.duplicates} expected new
                       leads · {review.duplicates} exact Maps duplicates ·{" "}
-                      {review.invalid.length} invalid
+                      {review.invalid.length} invalid ·{" "}
+                      {review.previouslyImported} previously imported
+                      (importable)
                     </strong>
                     <p>
                       Duplicates are rechecked when saving. Names, phone
                       numbers, websites, and addresses never cause automatic
                       skipping.
                     </p>
+                    <details>
+                      <summary>Row classifications</summary>
+                      {review.classifications.map((r) => (
+                        <p key={r.row}>
+                          Row {r.row}: {r.kind}
+                        </p>
+                      ))}
+                    </details>
                     {review.invalid.length > 0 && (
                       <details>
-                        <summary>Invalid row details (first 20)</summary>
-                        {review.invalid.slice(0, 20).map((r) => (
+                        <summary>Invalid row details</summary>
+                        {review.invalid.map((r) => (
                           <p key={r.row}>
                             Row {r.row}: {r.message}
                           </p>

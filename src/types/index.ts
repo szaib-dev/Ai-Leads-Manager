@@ -6,6 +6,7 @@ export const statuses = [
   "Not Interested",
   "Follow-up",
   "Meeting Booked",
+  "Awaiting Callback",
 ] as const;
 export type LeadStatus = (typeof statuses)[number];
 export interface Lead {

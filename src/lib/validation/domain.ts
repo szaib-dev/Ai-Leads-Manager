@@ -13,6 +13,7 @@ export const dbLeadStatusSchema = z.enum([
   "not_interested",
   "follow_up",
   "meeting_booked",
+  "awaiting_callback",
 ]);
 const urlSchema = z
   .url()

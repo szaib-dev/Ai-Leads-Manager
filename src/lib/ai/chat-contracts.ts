@@ -7,6 +7,7 @@ export interface Conversation {
   updated_at: string;
 }
 export interface ChatMessage {
+  artifact?: ImportArtifact | null;
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -16,6 +17,19 @@ export interface ChatMessage {
   operation_id: string | null;
   created_at: string;
 }
+export const importArtifactSchema = z
+  .object({
+    kind: z.literal("import"),
+    importId: z.uuid(),
+    pageId: z.uuid(),
+    fileName: z.string().max(255),
+    imported: z.number().int().nonnegative(),
+    duplicates: z.number().int().nonnegative(),
+    invalid: z.number().int().nonnegative(),
+    status: z.string().max(30),
+  })
+  .strict();
+export type ImportArtifact = z.infer<typeof importArtifactSchema>;
 export interface Thread {
   conversation: Conversation;
   messages: ChatMessage[];
