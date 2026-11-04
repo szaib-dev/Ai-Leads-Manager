@@ -24,7 +24,7 @@ export function useMobileLayout() {
 export function useRemoteLeads(
   filters: LeadFilters,
   pageId: string | undefined,
-  mode: "page" | "archive" | "attempts",
+  mode: "page" | "archive" | "attempts" | "callbacks",
   enabled: boolean,
   version: number,
 ) {

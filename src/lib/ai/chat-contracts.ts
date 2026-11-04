@@ -45,6 +45,7 @@ export const chatRequestSchema = z
     pageId: z.uuid().nullable(),
     selectedIds: z.array(z.uuid()).max(10000).default([]),
     recentImportId: z.uuid().optional(),
+    fileId: z.uuid().optional(),
   })
   .strict();
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

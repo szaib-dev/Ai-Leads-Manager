@@ -127,3 +127,9 @@
 .tool[data-state="uploading"], .tool[data-state="processing"] { animation: attachment-pulse 1.8s ease-in-out infinite; }
 @keyframes attachment-pulse { 50% { border-color: var(--accent); } }
 @media (prefers-reduced-motion: reduce) { .tool { animation: none !important; } }
+
+.receipt {max-width:880px;margin:10px auto 18px;display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+.receipt strong {font-size:11px;font-weight:500;}
+.receipt p {margin:0;flex:1;min-width:180px;}
+.receipt .actions {gap:4px;}
+.receipt button,.receipt a {min-height:36px;font-size:11px;}

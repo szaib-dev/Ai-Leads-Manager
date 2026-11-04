@@ -66,13 +66,11 @@ try {
   async function importFile() {
     await page.goto(base + "/dash/pages");
     await page.getByRole("button", { name: "Import CSV", exact: true }).click();
-    await page
-      .getByLabel("CSV file", { exact: true })
-      .setInputFiles({
-        name: "80-leads.csv",
-        mimeType: "text/csv",
-        buffer: csv,
-      });
+    await page.getByLabel("CSV file", { exact: true }).setInputFiles({
+      name: "80-leads.csv",
+      mimeType: "text/csv",
+      buffer: csv,
+    });
     await expect(
       page.getByRole("button", { name: "Review import", exact: true }),
     ).toBeEnabled({ timeout: 30000 });
@@ -136,25 +134,47 @@ try {
   );
   await page.goto(base + "/dash/callbacks");
   await expect(
-    page.getByText("Fictional Callback QA", { exact: true }),
+    page.getByRole("button", { name: /Fictional Callback QA/ }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Overdue", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Called Back", exact: true }).click();
+  await expect(
+    page.getByText("Awaiting Callback", { exact: true }).first(),
+  ).toBeVisible();
   await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Save", exact: true })
+    .getByRole("button", { name: /Fictional Callback QA/ })
+    .first()
     .click();
-  await expect(page.getByText("Completed", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("dialog").getByRole("combobox").click();
+  await page.getByRole("option", { name: "Interested", exact: true }).click();
+  await page.getByRole("button", { name: "Save lead", exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await checked(client.from("leads").select("status").eq("id", lead.id))
+        )[0].status,
+    )
+    .toBe("interested");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  lead = (await checked(client.from("leads").select("*").eq("id", lead.id)))[0];
+  await checked(
+    client.rpc("record_call", {
+      p_lead: lead.id,
+      p_expected: lead.updated_at,
+      p_request: randomUUID(),
+      p_outcome: "awaiting_callback",
+    }),
+  );
   assert.equal(
     (
       await checked(
         client.from("call_attempts").select("id").eq("lead_id", lead.id),
       )
     ).length,
-    1,
+    2,
   );
   report.callbacks =
-    "Overdue and Called Back UI; exactly one initial call attempt";
+    "Standard callback lead list and normal status editor; edits create no call attempts";
   // Create conversations with real saved artifact messages, then open, switch and refresh.
   const chats = [];
   for (let i = 0; i < 2; i++) {
@@ -214,13 +234,11 @@ try {
       if (!String(e).includes("already handled")) throw e;
     }
   });
-  await page
-    .getByLabel("Attach CSV file", { exact: true })
-    .setInputFiles({
-      name: "attachment-qa.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("name,phone\nFictional Upload QA,123"),
-    });
+  await page.getByLabel("Attach CSV file", { exact: true }).setInputFiles({
+    name: "attachment-qa.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("name,phone\nFictional Upload QA,123"),
+  });
   await expect(
     page.getByText("attachment-qa.csv", { exact: true }),
   ).toBeVisible();
@@ -233,16 +251,34 @@ try {
   ).toBeDisabled();
   release();
   await page.unrouteAll({ behavior: "wait" });
-  await expect(page.getByLabel("CSV attachment import")).toBeVisible();
-  await expect(page.getByRole("button", {name:"Remove attachment", exact:true})).toBeEnabled({timeout:60000});
-  await page.getByLabel("Attach CSV file", {exact:true}).setInputFiles({name:"broken.csv",mimeType:"text/csv",buffer:Buffer.from('name,notes\nFixture,"unclosed')});
-  await expect(page.getByText("Failed", {exact:true})).toBeVisible();
-  await expect(page.getByRole("button",{name:"Retry attachment",exact:true})).toBeVisible();
-  await page.getByRole("button",{name:"Retry attachment",exact:true}).click();
-  await expect(page.getByText("Failed",{exact:true})).toBeVisible();
-  await expect(page.getByText("broken.csv",{exact:true})).toBeVisible();
-  await page.getByRole("button",{name:"Remove attachment",exact:true}).click();
-  await expect(page.getByLabel("CSV attachment import")).toHaveCount(0);
+  await expect(page.locator('[aria-label="Chat attachment"]')).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Remove", exact: true }),
+  ).toBeEnabled({ timeout: 60000 });
+  await page
+    .getByLabel("Attach CSV file", { exact: true })
+    .setInputFiles({
+      name: "broken.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from('name,notes\nFixture,"unclosed'),
+    });
+  await expect(
+    page.getByText("Could not read file. Retry or replace it.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Retry", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(
+    page.getByText("Could not read file. Retry or replace it.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("broken.csv", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.locator('[aria-label="Chat attachment"]')).toHaveCount(0);
   report.attachments =
     "Immediate filename, processing state, typing enabled, Send gated; replace, failed-file retry preserves filename, remove";
   await page.goto(base + "/dash/ai?chat=" + chats[0]);
@@ -252,8 +288,12 @@ try {
     for (const route of ["/dash/ai?chat=" + chats[0], "/dash/callbacks"]) {
       await page.goto(base + route);
       await expect(page.getByRole("main")).toBeVisible();
-      if(route.includes("ai?")) await expect(page.getByLabel("Chat import summary")).toBeVisible();
-      else await expect(page.getByText("Fictional Callback QA", {exact:true})).toBeVisible();
+      if (route.includes("ai?"))
+        await expect(page.getByLabel("Chat import summary")).toBeVisible();
+      else
+        await expect(
+          page.getByRole("button", { name: /Fictional Callback QA/ }).first(),
+        ).toBeVisible();
       assert.equal(
         await page.evaluate(
           () => document.documentElement.scrollWidth > innerWidth,

@@ -7,6 +7,8 @@ import {
   type ChatMessage,
 } from "@/lib/ai/chat-contracts";
 import { chatRpc } from "@/lib/ai/chat-db";
+import { answerWithFile } from "@/lib/ai/file-service";
+import { message } from "@/lib/ai/assistant-service";
 import { planAssistant } from "@/lib/ai/assistant-service";
 import { responseMessages, streamResponse } from "@/lib/ai/response-stream";
 import { aiServerToken, aiConfigured } from "@/lib/ai/config";
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "Invalid chat request" }, { status: 400 });
   }
-  const { client } = await databaseContext();
+  const { client, user } = await databaseContext();
   let claim: {
     state: string;
     attempt?: string;
@@ -51,10 +53,7 @@ export async function POST(request: Request) {
       p_scope: input.pageId,
     });
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Could not save message" },
-      { status: 409 },
-    );
+    return Response.json({ error: message(e) }, { status: 409 });
   }
   if (claim.state === "busy")
     return Response.json(
@@ -97,6 +96,44 @@ export async function POST(request: Request) {
           p_conversation: input.conversationId,
           p_before: input.assistantMessageId,
         });
+        const fileAnswer = await answerWithFile(
+          client,
+          user.id,
+          input,
+          memory,
+          (text) => emit({ type: "stage", text }),
+          request.signal,
+        );
+        if (fileAnswer) {
+          content = fileAnswer.reply;
+          emit({ type: "replace", text: content });
+          const saved = await chatRpc<boolean>(client, "ai_chat_finish", {
+            p_id: input.assistantMessageId,
+            p_attempt: claim.attempt,
+            p_content: content,
+            p_status: "completed",
+            p_error: null,
+            p_operation: null,
+            p_token: aiServerToken(),
+          });
+          if (saved)
+            emit({
+              type: "done",
+              message: {
+                id: input.assistantMessageId,
+                role: "assistant",
+                content,
+                status: "completed",
+                error: null,
+                reply_to: input.userMessageId,
+                operation_id: null,
+                created_at: new Date().toISOString(),
+                artifact: fileAnswer.artifact,
+              },
+            });
+          else emit({ type: "redacted" });
+          return;
+        }
         const planned = await planAssistant(
           input.text,
           {
@@ -204,8 +241,7 @@ export async function POST(request: Request) {
       } catch (e) {
         if (e && typeof e === "object" && "usage" in e)
           usage = e.usage as ProviderUsage;
-        const error =
-          e instanceof Error ? e.message : "The response was interrupted.";
+        const error = message(e);
         try {
           const saved = await chatRpc<boolean>(client, "ai_chat_finish", {
             p_id: input.assistantMessageId,

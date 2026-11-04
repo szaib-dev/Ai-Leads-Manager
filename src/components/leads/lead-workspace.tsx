@@ -66,7 +66,7 @@ export function LeadWorkspace({
   mode = "page",
 }: {
   pageId?: string;
-  mode?: "page" | "attempts" | "archive";
+  mode?: "page" | "attempts" | "archive" | "callbacks";
 }) {
   const {
     ownerId,
@@ -645,14 +645,18 @@ export function LeadWorkspace({
             ? pageInfo!.name
             : mode === "attempts"
               ? "Every call deserves another chance."
-              : "Archive"
+              : mode === "callbacks"
+                ? "Awaiting Callbacks"
+                : "Archive"
         }
         description={
           mode === "page"
             ? "New and interested leads. Unanswered leads move to Attempts; scheduled conversations move to Follow-ups."
             : mode === "attempts"
               ? "Pick up where you left off. No-answer and voicemail leads, all in one place."
-              : "Closed conversations, kept out of your way. Restore a lead whenever you need it."
+              : mode === "callbacks"
+                ? "Leads waiting for a return call. Open a lead to update its status or notes."
+                : "Closed conversations, kept out of your way. Restore a lead whenever you need it."
         }
         actions={
           mode === "page" ? (
@@ -733,7 +737,9 @@ export function LeadWorkspace({
                 ? "Active calling queue"
                 : mode === "attempts"
                   ? "Your next attempts"
-                  : "Archived businesses"}
+                  : mode === "callbacks"
+                    ? "Awaiting a return call"
+                    : "Archived businesses"}
             </h2>
             <span className="count-pill">
               {summaryReady ? summary.total : "—"}

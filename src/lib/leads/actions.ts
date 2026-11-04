@@ -88,7 +88,7 @@ export async function fetchPages(): Promise<ActionResult<PageWithCounts[]>> {
 const filterSchema = z
   .object({
     pageId: uuidSchema.optional(),
-    mode: z.enum(["page", "archive", "attempts"]),
+    mode: z.enum(["page", "archive", "attempts", "callbacks"]),
     search: z.string().max(200),
     status: z.string().max(30),
     phoneOnly: z.boolean(),

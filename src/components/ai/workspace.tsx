@@ -32,7 +32,6 @@ import {
   conversationThread,
   chatOperation,
   deleteConversation,
-  recordChatImport,
   analyzeChatBatch,
 } from "@/lib/ai/chat-actions";
 import {
@@ -49,9 +48,9 @@ import {
   type PermissionMode,
 } from "@/lib/ai/assistant-contracts";
 import { Operation } from "./operation";
-import { ChatImport, ChatImportSummary } from "./chat-import";
+import { ChatAttachment } from "./chat-attachment";
+import { ChatImportSummary } from "./chat-import";
 import { MAX_CSV_BYTES } from "@/lib/imports/csv";
-import type { ImportResult } from "@/lib/leads/contracts";
 import styles from "./workspace.module.css";
 
 export function AiWorkspace({
@@ -123,6 +122,7 @@ function Workspace({
   const [attachment, setAttachment] = useState<{
     file: File;
     key: string;
+    uploadedId?: string;
     conversationId: string;
     userId: string;
     assistantId: string;
@@ -213,7 +213,14 @@ function Workspace({
   useEffect(() => {
     if (messages.length > 0 && follow.current && viewport.current)
       viewport.current.scrollTop = viewport.current.scrollHeight;
-  }, [local, thread.data, stage, messages.length, attachment?.key, attachmentBusy]);
+  }, [
+    local,
+    thread.data,
+    stage,
+    messages.length,
+    attachment?.key,
+    attachmentBusy,
+  ]);
   function updateMessage(
     messageId: string,
     change: Partial<ChatMessage> | ((m: ChatMessage) => Partial<ChatMessage>),
@@ -230,7 +237,7 @@ function Workspace({
   async function submit(retry?: ChatMessage) {
     if (
       lock.current ||
-      !!attachment ||
+      (attachment && !attachment.uploadedId) ||
       !canFetch ||
       (thread.loading && !!loadId)
     )
@@ -255,12 +262,13 @@ function Workspace({
               recentImportId: recentImport,
             };
     } else {
-      if (!shouldSend(text, lock.current)) return;
+      if (!shouldSend(text, lock.current) && !attachment?.uploadedId) return;
       request = {
         conversationId: id ?? crypto.randomUUID(),
         userMessageId: crypto.randomUUID(),
         assistantMessageId: crypto.randomUUID(),
-        text: text.trim(),
+        text: text.trim() || `I’ve attached ${attachment!.file.name}.`,
+        fileId: attachment?.uploadedId,
         pageId: activePage ?? null,
         selectedIds:
           generatedSelection ??
@@ -320,6 +328,8 @@ function Workspace({
         const body = await response.json();
         throw new Error(body.error ?? `Request failed (${response.status})`);
       }
+      setAttachment(undefined);
+      setAttachmentBusy(false);
       // Preserve a reloadable link without remounting the active streaming component.
       window.history.replaceState(
         null,
@@ -346,6 +356,8 @@ function Workspace({
         if (event.type === "done") {
           ended = true;
           updateMessage(request.assistantMessageId, event.message);
+          if (event.message.artifact)
+            setRecentAiImport(event.message.artifact.importId);
         }
         if (event.type === "redacted") {
           ended = true;
@@ -471,7 +483,7 @@ function Workspace({
     window.history.replaceState(null, "", "/dash/ai");
   }
   function attach(file: File) {
-    if (busy || attachmentBusy || !canFetch) return;
+    if (busy || !canFetch) return;
     if (!/\.(csv|tsv)$/i.test(file.name) || file.size > MAX_CSV_BYTES) {
       setError("Choose a CSV or TSV file up to 3.5 MB.");
       return;
@@ -489,40 +501,6 @@ function Workspace({
       assistantId: crypto.randomUUID(),
       pageId: activePage,
     });
-  }
-  async function completeImport(result: ImportResult) {
-    if (!attachment) return;
-    const saved = await recordChatImport({
-      conversationId: attachment.conversationId,
-      userId: attachment.userId,
-      assistantId: attachment.assistantId,
-      importId: result.id,
-    });
-    if (saved.error)
-      throw new Error(
-        `Import saved. Could not save the conversation: ${saved.error}`,
-      );
-    const loaded = await conversationThread(attachment.conversationId);
-    if (loaded.error) throw new Error(loaded.error);
-    if (loaded.data) {
-      setLocal(loaded.data.messages);
-      setResults(loaded.data.results);
-      setOlder([]);
-      setHasOlder(loaded.data.hasMore);
-    }
-    setRecentAiImport(result.id);
-    setId(attachment.conversationId);
-    setLoadId(attachment.conversationId);
-    window.history.replaceState(
-      null,
-      "",
-      `/dash/ai?chat=${attachment.conversationId}`,
-    );
-    setAttachment(undefined);
-    setAttachmentBusy(false);
-    history.retry();
-    settings.retry();
-    await refreshPages();
   }
   async function loadOlder() {
     if (!id || busy) return;
@@ -901,20 +879,6 @@ function Workspace({
                   )}
               </article>
             ))}
-            {attachment && (
-              <ChatImport
-                key={attachment.key}
-                file={attachment.file}
-                pageId={attachment.pageId}
-                onBusy={setAttachmentBusy}
-                onReplace={() => fileInput.current?.click()}
-                onRemove={() => {
-                  setAttachment(undefined);
-                  setAttachmentBusy(false);
-                }}
-                onComplete={completeImport}
-              />
-            )}
             {busy && stage && (
               <div className={styles.stage} role="status">
                 <span />
@@ -955,7 +919,7 @@ function Workspace({
             className="sr-only"
             accept=".csv,.tsv,text/csv,text/tab-separated-values"
             aria-label="Attach CSV file"
-            disabled={busy || attachmentBusy || !canFetch}
+            disabled={busy || !canFetch}
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) attach(file);
@@ -964,8 +928,29 @@ function Workspace({
           />
           {dragActive && (
             <p role="status" className={styles.dropHint}>
-              Drop your CSV to import in this conversation
+              Drop your CSV to discuss it in this conversation
             </p>
+          )}
+          {attachment && (
+            <ChatAttachment
+              key={attachment.key}
+              file={attachment.file}
+              id={attachment.key}
+              conversationId={attachment.conversationId}
+              onReady={(uploadedId) =>
+                setAttachment((current) =>
+                  current?.key === attachment.key
+                    ? { ...current, uploadedId }
+                    : current,
+                )
+              }
+              onBusy={setAttachmentBusy}
+              onRemove={() => {
+                setAttachment(undefined);
+                setAttachmentBusy(false);
+              }}
+              onReplace={() => fileInput.current?.click()}
+            />
           )}
           <form
             className={styles.composer}
@@ -977,7 +962,11 @@ function Workspace({
             <textarea
               ref={composer}
               aria-label="Message AI assistant"
-              placeholder="Ask about leads…"
+              placeholder={
+                attachment
+                  ? "What would you like to do with this file?"
+                  : "Ask about leads…"
+              }
               value={text}
               rows={1}
               maxLength={2000}
@@ -1002,7 +991,7 @@ function Workspace({
                 variant="ghost"
                 size="icon"
                 aria-label="Attach CSV"
-                disabled={busy || attachmentBusy || !!attachment || !canFetch}
+                disabled={busy || !canFetch}
                 onClick={() => fileInput.current?.click()}
               >
                 <Paperclip size={19} />
@@ -1013,7 +1002,8 @@ function Workspace({
                 size="icon"
                 aria-label="Send message"
                 disabled={
-                  !shouldSend(text, busy || !!attachment) ||
+                  busy ||
+                  (attachment ? !attachment.uploadedId : !text.trim()) ||
                   !canFetch ||
                   !!thread.error ||
                   (!!loadId && thread.loading)

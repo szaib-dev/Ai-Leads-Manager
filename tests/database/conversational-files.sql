@@ -1,0 +1,22 @@
+begin;
+insert into auth.users(id)values('99000000-0000-4000-8000-000000000017'),('98000000-0000-4000-8000-000000000017');
+select set_config('request.jwt.claim.sub','99000000-0000-4000-8000-000000000017',true);
+set local role authenticated;
+do $$declare f uuid=gen_random_uuid();c uuid=gen_random_uuid();u uuid=gen_random_uuid();a uuid=gen_random_uuid();p uuid;l uuid;stamp timestamptz;r jsonb;begin
+ perform public.store_chat_file(f,c,'lead-data.csv',E'name,phone\nFixture,123');
+ if exists(select 1 from public.lead_pages where owner_id=auth.uid()) or exists(select 1 from public.imports where owner_id=auth.uid()) then raise exception 'Attachment caused implicit import';end if;
+ perform public.ai_chat_claim(c,u,a,'Explain the attached file',null);perform public.bind_chat_file(f,u);
+ if not exists(select 1 from public.ai_chat_files where id=f and message_id=u)then raise exception 'File did not persist with conversation';end if;
+ p=public.manage_page(null,'Callbacks','',false);
+ insert into public.leads(page_id,business_name,phone)values(p,'Callback fixture','+12025550155')returning id,updated_at into l,stamp;
+ perform public.record_call(l,stamp,gen_random_uuid(),'awaiting_callback','');
+ if (public.workspace_leads(null,'callbacks')->>'total')::int<>1 then raise exception 'Callback lead not visible in regular lead list';end if;
+ select updated_at into stamp from public.leads where id=l;
+ perform public.save_lead(l,stamp,'{"status":"not_interested"}','edit');
+ if (public.workspace_leads(null,'callbacks')->>'total')::int<>0 or not public.is_lead_suppressed(l) then raise exception 'Normal status editing did not route callback rejection';end if;
+ perform set_config('request.jwt.claim.sub','98000000-0000-4000-8000-000000000017',true);
+ if exists(select 1 from public.ai_chat_files)then raise exception 'File crossed owner boundary';end if;
+ begin perform public.bind_chat_file(f,u);raise exception 'Cross-owner bind allowed';exception when raise_exception then if sqlerrm='Cross-owner bind allowed'then raise;end if;end;
+ raise notice 'PASS: upload never imports, conversation file persistence/ownership, normal callback lead list/status editing';
+end $$;
+rollback;

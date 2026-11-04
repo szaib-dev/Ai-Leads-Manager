@@ -657,13 +657,36 @@
 .compactSync a {
   font-size: 10px;
 }
-.compactSync :global(.demo-label) {display:inline-flex!important;}
-.composer {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:6px;align-items:end;padding:8px;}
-.composer textarea {grid-column:2;grid-row:1;min-height:44px;padding:8px 4px;}
-.composer > div {display:contents;}
-.composer > div > span {display:none;}
-.composer button[type="button"] {grid-column:1;grid-row:1;}
-.composer button[type="submit"] {grid-column:3;grid-row:1;}
+.compactSync :global(.demo-label) {
+  display: inline-flex !important;
+}
+.composer {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 6px;
+  align-items: end;
+  padding: 8px;
+}
+.composer textarea {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 44px;
+  padding: 8px 4px;
+}
+.composer > div {
+  display: contents;
+}
+.composer > div > span {
+  display: none;
+}
+.composer button[type="button"] {
+  grid-column: 1;
+  grid-row: 1;
+}
+.composer button[type="submit"] {
+  grid-column: 3;
+  grid-row: 1;
+}
 @media (max-width: 400px) {
   .toolbarSpace {
     display: none;
@@ -673,7 +696,62 @@
   }
 }
 
-.composerArea { max-width: 936px; }
-.answer > .messageLabel, .answer > .markdown, .answer > .error { max-width: 880px; margin-left: auto; margin-right: auto; }
-.user { margin-right: max(0px, calc((100% - 880px) / 2)); max-width: min(85%, 880px); }
-.viewport { overflow-x: hidden; }
+.composerArea {
+  max-width: 936px;
+}
+.answer > .messageLabel,
+.answer > .markdown,
+.answer > .error {
+  max-width: 880px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.user {
+  margin-right: max(0px, calc((100% - 880px) / 2));
+  max-width: min(85%, 880px);
+}
+.viewport {
+  overflow-x: hidden;
+}
+
+.attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.attachment > div {
+  flex: 1;
+  min-width: 120px;
+  overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.attachment span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.attachment button {
+  min-height: 36px;
+  padding: 6px 8px;
+}
+.uploadSpinner {
+  animation: file-spin 1.2s linear infinite;
+}
+@keyframes file-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uploadSpinner {
+    animation: none;
+  }
+}

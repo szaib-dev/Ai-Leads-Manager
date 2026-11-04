@@ -249,23 +249,19 @@ try {
   await page.getByRole("button", { name: "New chat", exact: true }).click();
   const csv = `Business name,Phone,Google Maps URL,Country,Description\nIncoming duplicate,+12025550123,${seedMaps},USA,Must preserve original\nNew Chat Clinic,+12025550124,https://maps.google.com/?cid=chat-tools-new,USA,Skin treatments`;
   await page.getByRole("button", { name: "Attach CSV", exact: true }).click();
-  await page
-    .getByLabel("Attach CSV file", { exact: true })
-    .setInputFiles({
-      name: "clinics.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
-  await expect(
-    page.getByRole("button", { name: "Confirm CSV import", exact: true }),
-  ).toBeVisible({ timeout: 65000 });
-  await expect(
-    page.getByRole("combobox", { name: "Chat import destination" }),
-  ).toContainText("USA");
+  await page.getByLabel("Attach CSV file", { exact: true }).setInputFiles({
+    name: "clinics.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+  await expect(page.locator('[aria-label="Chat attachment"]')).toContainText("Ready", {
+    timeout: 20000,
+  });
   assert.equal(await count(), 12);
   await page
-    .getByRole("button", { name: "Confirm CSV import", exact: true })
-    .click();
+    .getByLabel("Message AI assistant")
+    .fill("Add this file to the existing USA lead page.");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Chat import summary" }),
   ).toContainText("1 imported", { timeout: 25000 });
@@ -322,17 +318,64 @@ try {
   );
   assert.equal(await count(), 12);
   report.chatDeletionLeavesLeadsAndHistoryIntact = true;
-  await checked(client.rpc("ai_set_mode",{p_mode:"autonomous"}));
-  await page.getByLabel("Attach CSV file",{exact:true}).setInputFiles({name:"canada-clinics.csv",mimeType:"text/csv",buffer:Buffer.from("Business name,Country\nAutomatic Canada Clinic,Canada")});
-  await expect(page.getByRole("region",{name:"Chat import summary"})).toContainText("1 imported",{timeout:65000});
-  assert.equal(await count(),13);
-  const canada=(await checked(client.from("lead_pages").select("id").eq("name","Canada").is("deleted_at",null)))[0];assert.ok(canada);
-  assert.equal((await checked(client.from("leads").select("id").eq("page_id",canada.id).is("deleted_at",null))).length,1);
-  await page.getByRole("button",{name:"Undo import",exact:true}).click();await expect.poll(count,{timeout:20000}).toBe(12);
-  const advisory=await chat("Delete all leads irrelevant to skin clinics",usa);assert.equal(advisory.result.action,"search");assert.ok(advisory.result.analysis);assert.equal(await count(),12);
-  report.autonomousAutomaticNewPageImportUndoAndNoRelevanceAutoDelete=true;
-  await checked(client.rpc("ai_set_mode",{p_mode:"strict"}));
-  await page.goto(base+"/dash/ai");
+  await checked(client.rpc("ai_set_mode", { p_mode: "autonomous" }));
+  await page
+    .getByLabel("Attach CSV file", { exact: true })
+    .setInputFiles({
+      name: "canada-clinics.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "Business name,Country\nAutomatic Canada Clinic,Canada",
+      ),
+    });
+  await expect(page.locator('[aria-label="Chat attachment"]')).toContainText("Ready");
+  assert.equal(
+    await count(),
+    12,
+    "Autonomous mode must not import on attachment",
+  );
+  await page
+    .getByLabel("Message AI assistant")
+    .fill("Create a new lead page called Canada from this file.");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Chat import summary" }),
+  ).toContainText("1 imported", { timeout: 65000 });
+  assert.equal(await count(), 13);
+  const canada = (
+    await checked(
+      client
+        .from("lead_pages")
+        .select("id")
+        .eq("name", "Canada")
+        .is("deleted_at", null),
+    )
+  )[0];
+  assert.ok(canada);
+  assert.equal(
+    (
+      await checked(
+        client
+          .from("leads")
+          .select("id")
+          .eq("page_id", canada.id)
+          .is("deleted_at", null),
+      )
+    ).length,
+    1,
+  );
+  await page.getByRole("button", { name: "Undo import", exact: true }).click();
+  await expect.poll(count, { timeout: 20000 }).toBe(12);
+  const advisory = await chat(
+    "Delete all leads irrelevant to skin clinics",
+    usa,
+  );
+  assert.equal(advisory.result.action, "search");
+  assert.ok(advisory.result.analysis);
+  assert.equal(await count(), 12);
+  report.autonomousAttachmentRequiresIntentThenNewPageImportUndoAndNoRelevanceAutoDelete = true;
+  await checked(client.rpc("ai_set_mode", { p_mode: "strict" }));
+  await page.goto(base + "/dash/ai");
   for (const width of [360, 412]) {
     await page.setViewportSize({ width, height: 850 });
     assert.ok(
@@ -383,25 +426,17 @@ try {
   await page
     .getByRole("region", { name: "AI workspace", exact: true })
     .dispatchEvent("drop", { dataTransfer: transfer });
+  await expect(page.locator('[aria-label="Chat attachment"]')).toContainText("Ready");
+  await page.getByLabel("Message AI assistant").fill("Explain this file");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(
-    page.getByRole("region", { name: "CSV attachment import" }),
-  ).toContainText("fallback-chat.csv");
-  await expect(
-    page.getByRole("status").filter({ hasText: /not configured/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Confirm CSV import", exact: true }),
-  ).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Confirm CSV import", exact: true })
-    .click();
-  await expect(
-    page.getByRole("region", { name: "Chat import summary" }),
-  ).toBeVisible();
-  assert.equal(await count(), 13);
-  await page.getByRole("button", { name: "Undo import", exact: true }).click();
-  await expect.poll(count, { timeout: 20000 }).toBe(12);
-  report.missingKeyDropManualFallbackImportUndo = true;
+    page.getByText(/not configured|Set DEEPSEEK_API_KEY/).first(),
+  ).toBeVisible({ timeout: 20000 });
+  assert.equal(await count(), 12);
+  assert.ok(
+    (await checked(client.from("ai_chat_files").select("id"))).length > 0,
+  );
+  report.missingKeyPreservesFileWithoutImport = true;
   await page.goto(base + "/dash/pages/" + usa);
   const mobile = page.locator(".mobile-leads");
   await mobile.getByRole("checkbox").first().check();

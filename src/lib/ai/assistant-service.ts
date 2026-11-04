@@ -46,6 +46,11 @@ export function message(e: unknown) {
     throw e;
   if (
     e instanceof Error &&
+    /Set DEEPSEEK_API_KEY|DeepSeek is not configured/.test(e.message)
+  )
+    return "AI is not configured yet. Your file and conversation are saved.";
+  if (
+    e instanceof Error &&
     /(?:column|function|relation) .*does not exist|schema cache|permission denied|violates .*constraint|syntax error|invalid input syntax|SQLSTATE|PGRST/i.test(
       e.message,
     )
