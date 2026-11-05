@@ -411,7 +411,7 @@ export function LeadWorkspace({
               </thead>
               <tbody>
                 {shown.map((l) => (
-                  <tr key={l.id}>
+                  <tr key={l.id} className={l.previouslyImported ? "previously-imported" : undefined}>
                     <td>
                       <div
                         style={{
@@ -820,7 +820,11 @@ export function LeadWorkspace({
         <CsvImportDialog
           pageId={pageId}
           onClose={() => setImportOpen(false)}
-          onImported={refresh}
+          onImported={() => {
+            setDesktop({ ...freshFilters });
+            setMobile({ ...freshFilters });
+            setVersion(v => v + 1);
+          }}
         />
       )}
       {historyOpen && pageId && (

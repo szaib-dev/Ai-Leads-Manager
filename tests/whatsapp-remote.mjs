@@ -7,7 +7,7 @@ import { chromium, expect } from '@playwright/test';
 import { testAdminKey } from './fixtures/remote-admin-key.mjs';
 const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 assert.equal(new URL(url).hostname,'lypfxcohmsosedwptebu.supabase.co');
-const base='https://ai-leads-manager-burak.vercel.app';
+const base=process.env.WHATSAPP_TEST_BASE || 'https://ai-leads-manager-burak.vercel.app';
 const opts={auth:{persistSession:false,autoRefreshToken:false}};
 const admin=createClient(url,testAdminKey(),opts),sdk=createClient(url,key,opts), jar=new Map();
 const ssr=createServerClient(url,key,{cookies:{getAll:()=>[...jar].map(([name,value])=>({name,value})),setAll:values=>values.forEach(c=>jar.set(c.name,c.value))}});
@@ -45,13 +45,17 @@ try {
  console.log('PASS: outcome handoff reached both browsers',JSON.stringify(report));
  for(const status of ['In Conversation','Interested','Closed','Waiting for Reply']) {
    console.log('Testing status',status);
-   await a.locator('select').selectOption(status);
+   await a.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'}).click();
+   await a.getByRole('option',{name:status,exact:true}).click();
+   await expect(a.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'})).toBeEnabled();
+   await a.getByRole('button',{name:'Actions for Fictional WhatsApp QA'}).click();
+   await a.getByRole('menuitem',{name:'Edit conversation',exact:true}).click();
    await a.locator('textarea').fill('Remote QA '+status);
    await a.locator('input[type=date]').fill('2026-11-05');
    start=performance.now();await a.getByRole('button',{name:'Save conversation',exact:true}).click();
-   await expect(b.locator('select')).toHaveValue(status,{timeout:30000});
+   await expect(b.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'})).toContainText(status,{timeout:30000});
    report.timings[status+'CrossBrowserMs']=Math.round(performance.now()-start);
-   await expect(a.getByRole('button',{name:'Save conversation',exact:true})).toBeEnabled();
+   await expect(a.getByRole('dialog')).toHaveCount(0);
    lead=await record();assert.equal(lead.whatsapp_status,status);assert.equal(lead.whatsapp_notes,'Remote QA '+status);assert.equal(lead.whatsapp_last_interaction,'2026-11-05');
  }
  lead=await record();
@@ -60,7 +64,8 @@ try {
  assert.equal((await checked(sdk.from('followups').select('id').eq('owner_id',owner).is('cancelled_at',null).is('completed_at',null))).length,1);
  lead=await record();await checked(sdk.rpc('manage_whatsapp',{p_id:lead.id,p_expected:lead.updated_at,p_status:'In Conversation',p_notes:'returned from followup',p_date:'2026-11-05'}));
  await expect(b.getByRole('heading',{name:'Fictional WhatsApp QA',exact:true})).toBeVisible({timeout:30000});
- await a.getByRole('button',{name:'Move to Archive',exact:true}).click();
+ await a.getByRole('button',{name:'Actions for Fictional WhatsApp QA'}).click();
+ await a.getByRole('menuitem',{name:'Move to Archive',exact:true}).click();
  await expect(b.getByRole('heading',{name:'Fictional WhatsApp QA',exact:true})).toHaveCount(0,{timeout:30000});
  lead=await record();assert.ok(lead.archived_at);
  await checked(sdk.rpc('save_lead',{p_id:lead.id,p_expected:lead.updated_at,p_data:{},p_action:'restore'}));
@@ -71,12 +76,12 @@ try {
  await contexts[1].setOffline(true);
  lead=await record();await checked(sdk.rpc('manage_whatsapp',{p_id:lead.id,p_expected:lead.updated_at,p_status:'Interested',p_notes:'offline catchup',p_date:null}));
  await contexts[1].setOffline(false);
- await expect(b.locator('select')).toHaveValue('Interested',{timeout:30000});
+ await expect(b.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'})).toContainText('Interested',{timeout:30000});
  await b.route(base+'/dash/whatsapp',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
- await b.locator('select').selectOption('Closed');
+ await b.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'}).selectOption('Closed');
  await b.getByRole('button',{name:'Save conversation',exact:true}).click();
  await expect(b.getByRole('alert')).toBeVisible({timeout:30000});
- await expect(b.locator('select')).toHaveValue('Interested');
+ await expect(b.getByRole('combobox',{name:'Conversation status for Fictional WhatsApp QA'})).toContainText('Interested');
  assert.equal((await record()).whatsapp_status,'Interested');
  await b.unroute(base+'/dash/whatsapp');
  report.networkFailureRolledBack=true;

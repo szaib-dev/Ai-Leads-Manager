@@ -1,0 +1,11 @@
+# CSV refresh, returned leads and WhatsApp table — 2026-11-05
+
+- CSV completion now invalidates the mounted lead list before starting the count refresh. Count failures do not hide a successful import or prevent the list notification. Manual, automatic and undo paths notify consistently.
+- Importing into a lead page resets both layout views to the first page, newest sort and clear filters so the new records are visible. Other edits retain the existing filters and pagination.
+- Migration 021 records an owner-scoped hash when an individual lead is soft-deleted, and backfills hashes for existing deleted leads. Previously this ledger remembered deleted pages only. Maps URLs retain exact matching. Where Maps is absent, the marker can match a trimmed case-insensitive business name plus phone digits, or name plus website. Fallback matches only highlight for human review; they do not deduplicate or delete leads.
+- Returned records receive a distinct purple background and left border on desktop, matching the existing highlighted mobile cards. The existing review/delete and Mark as normal actions remain available.
+- WhatsApp Conversations uses the existing lead-table styling. Conversation status saves automatically with optimistic display, a row-level pending indicator, duplicate-click protection and rollback on failure. Notes and interaction date are edited in a dialog; workflow changes and archive remain in the actions menu. No messaging operation adds a phone attempt.
+- Migration 021 was applied to linked production Supabase project lypfxcohmsosedwptebu after access was restored. No existing leads were updated or removed by the migration.
+- Lint, TypeScript, 61 unit tests and production build passed on Node 24. The real-database browser regression tests/import-conversation-browser-remote.mjs passed against the current local production build with disposable accounts: imports appeared in both already-mounted lists without reload, individually deleted Maps and phone/name matches were highlighted while new rows were unmarked, and inline WhatsApp status synchronized across sessions with zero attempts. Test fixtures were removed. Desktop and mobile screenshots were inspected.
+
+Frontend changes are local until committed/pushed and deployed by Vercel.

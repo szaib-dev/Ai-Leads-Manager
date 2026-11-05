@@ -3272,3 +3272,12 @@ small,
 .previously-imported{border-color:color-mix(in srgb,var(--accent) 40%,var(--border))!important}.reimport-notice{margin:10px 0;padding:10px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;background:var(--accent-soft);font-size:11px;max-width:330px;white-space:normal}.reimport-notice>span{font-weight:600;color:var(--accent)}.reimport-notice>small{display:block;line-height:1.6;color:var(--muted);margin:5px 0}.reimport-notice>div{display:flex;gap:12px;flex-wrap:wrap}.reimport-notice button{min-height:44px;color:var(--accent);font-size:11px;text-align:left}.reimport-notice button:disabled{opacity:.5}
 
 .main-content.ai-main-content{height:100dvh}@media(max-width:767px){.main-content.ai-main-content{height:calc(100dvh - 67px - env(safe-area-inset-bottom));}}
+
+/* Reimported records stay visible until explicitly reviewed. */
+.leads-table tbody tr.previously-imported td { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.leads-table tbody tr.previously-imported td:first-child { box-shadow: inset 3px 0 var(--accent); }
+.lead-card.previously-imported { background: var(--accent-soft); }
+.whatsapp-table { min-width: 720px; }
+.whatsapp-table .conversation-notes { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whatsapp-table td:nth-child(5), .whatsapp-table th:nth-child(5) { display: table-cell; }
+.conversation-editor { display: grid; gap: 16px; }

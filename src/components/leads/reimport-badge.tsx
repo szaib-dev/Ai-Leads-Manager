@@ -20,8 +20,8 @@ export function ReimportBadge({
     <div className="reimport-notice">
       <span>Previously imported</span>
       <small>
-        This exact Maps URL appeared on a deleted page. This incoming record was
-        retained.
+        This business was previously deleted and has been imported again. Review it
+        before deciding whether to keep or delete it.
       </small>
       <div>
         <button

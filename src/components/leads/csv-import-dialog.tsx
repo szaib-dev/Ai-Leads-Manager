@@ -138,8 +138,8 @@ export function CsvImportDialog({
       if (prepared.data.result) {
         setResult(prepared.data.result);
         setRecentAiImport(prepared.data.result.id);
-        await refreshPages();
         onImported();
+        void refreshPages().catch(() => setError("Import saved. Counts will retry when connected."));
       }
     } catch (e) {
       if (generation === aiGeneration.current) {
@@ -197,8 +197,8 @@ export function CsvImportDialog({
                   else {
                     setUndone(true);
                     setRecentAiImport(undefined);
-                    await refreshPages();
                     onImported();
+                    void refreshPages().catch(() => setError("Import undone. Counts will retry when connected."));
                   }
                 } finally {
                   setBusy(false);
@@ -692,8 +692,8 @@ export function CsvImportDialog({
                       else {
                         setResult(r.data);
                         setRecentAiImport(r.data!.id);
-                        await refreshPages();
                         onImported();
+                        void refreshPages().catch(() => setError("Import saved. Counts will retry when connected."));
                       }
                     } catch {
                       setError(
