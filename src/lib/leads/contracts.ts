@@ -33,6 +33,7 @@ export interface ImportResult {
 export type ActionResult<T> =
   { data: T; error?: never } | { data?: never; error: string };
 export const statusToDb: Record<string, string> = {
+  WhatsApp: "whatsapp",
   New: "new",
   "No Answer": "no_answer",
   Voicemail: "voicemail",

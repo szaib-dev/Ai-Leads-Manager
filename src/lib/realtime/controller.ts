@@ -10,9 +10,9 @@ export interface SyncTransport {
 // One transport, one debounce queue and one tiny checkpoint read on reconnect/focus.
 export function startWorkspaceSync(
   transport: SyncTransport,
-  onChange: () => void,
+  onChange: () => unknown,
   onStatus: (s: SyncStatus) => void,
-  { batchMs = 200, pollMs = 120000 } = {},
+  { batchMs = 200, pollMs = 15000 } = {},
 ) {
   let transportStatus: SyncStatus = "connecting";
   let stopped = false,
@@ -27,11 +27,19 @@ export function startWorkspaceSync(
     pending = Math.max(pending, revision);
     if (!active) return;
     seen = Math.max(seen, revision);
-    if (timer) clearTimeout(timer);
+    if (timer) return;
     timer = setTimeout(() => {
       timer = undefined;
+      const delivered = pending;
       pending = -1;
-      if (!stopped && active) onChange();
+      if (!stopped && active) {
+        Promise.resolve().then(onChange).catch(() => {
+          if (!stopped) {
+            seen = Math.min(seen, delivered - 1);
+            onStatus("stale");
+          }
+        });
+      }
     }, batchMs);
   }
   async function reconcile() {

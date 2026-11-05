@@ -168,6 +168,7 @@ const editSchema = z
     status: z
       .enum([
         "new",
+        "whatsapp",
         "no_answer",
         "voicemail",
         "interested",

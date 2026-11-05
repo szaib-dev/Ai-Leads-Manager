@@ -97,7 +97,7 @@ export function Providers({
         if (!r.data) throw new Error(r.error);
         if (mounted.current) {
           setPages(r.data.pages);
-          controller.current?.acknowledge(r.data.revision);
+          // Do not acknowledge here: mounted queries may have read an older snapshot.
         }
       } while (again.current && mounted.current);
     })();
@@ -129,9 +129,7 @@ export function Providers({
       supabaseSyncTransport(client, ownerId, () =>
         setPrivacyEpoch((v) => v + 1),
       ),
-      () => {
-        void refreshPages().catch(() => setSyncStatus("stale"));
-      },
+      () => refreshPages(),
       (status) => {
         setSyncStatus(
           status !== "signed-out" && !navigator.onLine ? "offline" : status,

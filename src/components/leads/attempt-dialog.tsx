@@ -1,4 +1,5 @@
 "use client";
+import { saveWhatsApp } from "@/lib/leads/whatsapp-actions";
 import { SafeCallLink } from "./safe-call-link";
 import styles from "./calling.module.css";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +43,7 @@ export function AttemptDialog({
   followupId?: string;
 }) {
   const { refreshPages, toast, timezone } = useWorkspace();
-  const [outcome, setOutcome] = useState<CallOutcome>("no_answer"),
+  const [outcome, setOutcome] = useState<CallOutcome | "whatsapp">("no_answer"),
     [notes, setNotes] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -50,6 +51,7 @@ export function AttemptDialog({
     [requestId] = useState(() => crypto.randomUUID());
   const submitting = useRef(false);
   const icons = {
+    whatsapp: Phone,
     awaiting_callback: CalendarClock,
     no_answer: PhoneMissed,
     voicemail: Voicemail,
@@ -107,6 +109,13 @@ export function AttemptDialog({
             setBusy(true);
             setError("");
             try {
+              if (outcome === "whatsapp") {
+                publishLead({ ...lead, status: "WhatsApp" });
+                const r = await saveWhatsApp({ id: lead.id, expected: lead.updatedAt!, status: "Waiting for Reply", notes, date: "" });
+                if (r.error) { publishLead(lead); setError(r.error); }
+                else { toast("Moved to WhatsApp Conversations"); onClose(); void refreshPages().catch(() => toast("Conversation saved. Counts will retry when connected.")); }
+                return;
+              }
               const failed = outcome === "no_answer" || outcome === "voicemail";
               const optimistic: Lead = {
                 ...lead,
@@ -155,8 +164,8 @@ export function AttemptDialog({
                 toast("Call attempt recorded");
                 const fresh = await fetchLeadRecord(lead.id);
                 if (fresh.data) publishLead(fresh.data);
-                await refreshPages().catch(() =>
-                  toast("Attempt saved. Reload to refresh counts."),
+                void refreshPages().catch(() =>
+                  toast("Attempt saved. Counts will retry when connected."),
                 );
                 onRecorded?.();
                 onClose();
@@ -174,7 +183,7 @@ export function AttemptDialog({
         >
           <fieldset className={styles.outcomes} disabled={busy}>
             <legend>Call outcome</legend>
-            {callOutcomes.map((s) => {
+            {[...callOutcomes, "whatsapp" as const].map((s) => {
               const Icon = icons[s];
               return (
                 <label key={s} data-selected={outcome === s}>
@@ -189,7 +198,7 @@ export function AttemptDialog({
                   />
                   <Icon size={19} />
                   <span>
-                    {s === "callback_requested" ? "Callback" : outcomeLabels[s]}
+                    {s === "whatsapp" ? "Continue on WhatsApp" : s === "callback_requested" ? "Callback" : outcomeLabels[s]}
                   </span>
                   {outcome === s && <Check size={15} />}
                 </label>

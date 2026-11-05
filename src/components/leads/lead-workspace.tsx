@@ -1,4 +1,5 @@
 "use client";
+import { publishLead } from "@/lib/realtime/lead-updates";
 import { ReimportBadge } from "./reimport-badge";
 import { SelectionDelete } from "./selection-delete";
 import { MapsButton } from "./maps-button";
@@ -154,7 +155,8 @@ export function LeadWorkspace({
     const lead = (mobileLayout ? mobileRemote : desktopRemote).data.rows.find(
       (l) => l.id === id,
     );
-    if (!lead?.updatedAt) return;
+    if (!lead?.updatedAt || saving) return;
+    publishLead({ ...lead, archived, status: archived ? lead.status : "New" });
     setSaving(true);
     try {
       const r = await saveLead({
@@ -163,12 +165,13 @@ export function LeadWorkspace({
         data: {},
         action: archived ? "archive" : "restore",
       });
-      if (r.error) toast(r.error);
+      if (r.error) { publishLead(lead); toast(r.error); }
       else {
         toast(archived ? "Lead archived" : "Lead restored");
         refresh();
       }
     } catch {
+      publishLead(lead);
       toast("Could not update lead.");
     } finally {
       setSaving(false);

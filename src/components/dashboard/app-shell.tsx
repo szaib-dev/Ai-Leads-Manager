@@ -34,6 +34,7 @@ import { useWorkspace } from "@/components/providers";
 import { ApplicationSettings } from "./settings";
 import { SignOutItem } from "@/components/auth/sign-out-item";
 const nav = [
+  { href: "/dash/whatsapp", label: "WhatsApp Conversations", icon: PhoneMissed },
   { href: "/dash", label: "Overview", icon: LayoutDashboard },
   { href: "/dash/pages", label: "Lead pages", icon: Folder },
   { href: "/dash/attempts", label: "Attempts", icon: PhoneMissed },

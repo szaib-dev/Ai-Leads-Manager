@@ -307,3 +307,21 @@ test("dialer resume does not invalidate an unchanged workspace, but delivers cha
   assert.equal(changes, 1);
   sync.stop();
 });
+
+
+test("failed query refresh retries the same checkpoint instead of losing the revision", async () => {
+  let changed = 0;
+  const statuses: SyncStatus[] = [];
+  const sync = startWorkspaceSync({
+    connect: (_revision, status) => { status("live"); return () => {}; },
+    readRevision: async () => 7,
+  }, async () => { changed++; if (changed === 1) throw new Error("offline"); }, s => statuses.push(s), { batchMs: 1, pollMs: 100000 });
+  try {
+    await wait();
+    assert.equal(changed, 1);
+    assert.ok(statuses.includes("stale"));
+    await sync.reconcile();
+    await wait();
+    assert.equal(changed, 2);
+  } finally { sync.stop(); }
+});

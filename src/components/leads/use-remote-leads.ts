@@ -86,7 +86,11 @@ export function useRemoteLeads(
     [key, enabled, canFetch],
   );
   return {
-    data: enabled && canFetch && state.key === key ? state.data : empty,
+    data: enabled && canFetch && state.key === key ? { ...state.data, rows: state.data.rows.filter(row => !row.deleted &&
+      (mode === "archive" ? row.archived : !row.archived) &&
+      (mode !== "page" || ["New", "Interested"].includes(row.status)) &&
+      (mode !== "attempts" || ["No Answer", "Voicemail"].includes(row.status)) &&
+      (mode !== "callbacks" || row.status === "Awaiting Callback")) } : empty,
     error: state.key === key ? state.error : "",
     loading:
       enabled &&

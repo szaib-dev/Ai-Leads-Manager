@@ -2,7 +2,7 @@
 import { ReimportBadge } from "./reimport-badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useWorkspace } from "@/components/providers";
 import { ExternalLink, Globe, MapPin, Phone, Plus } from "lucide-react";
 import {
@@ -37,6 +37,7 @@ export function LeadDetails({
   onSaved?: () => void;
 }) {
   const { timezone, refreshPages, toast } = useWorkspace();
+  const deleting = useRef(false);
   const [lead, setLead] = useState(initialLead);
   const [editing, setEditing] = useState(false);
   async function reloadSaved(closeEdit = true) {
@@ -48,7 +49,7 @@ export function LeadDetails({
       setEditing(false);
       setStatus(r.data.status);
     }
-    await refreshPages();
+    void refreshPages().catch(() => toast("Lead saved. Counts will retry when connected."));
     toast("Lead saved");
   }
   const [notes, setNotes] = useState(lead.notes);
@@ -408,7 +409,7 @@ export function LeadDetails({
                 expected: lead.updatedAt!,
                 data: { notes },
               });
-              if (r.error) setError(r.error);
+              if (r.error) { publishLead(lead); setError(r.error); }
               else await reloadSaved(false);
             } catch {
               setError("Could not save notes. Try again.");
@@ -485,6 +486,9 @@ export function LeadDetails({
                   <Button
                     disabled={busy}
                     onClick={async () => {
+                      if (deleting.current) return;
+                      deleting.current = true;
+                      publishLead({ ...lead, deleted: true });
                       setBusy(true);
                       setError("");
                       try {
@@ -494,11 +498,13 @@ export function LeadDetails({
                           data: {},
                           action: "delete",
                         });
-                        if (r.error) setError(r.error);
+                        if (r.error) { publishLead(lead); setError(r.error); }
                         else onSaved?.();
                       } catch {
+                        publishLead(lead);
                         setError("Deletion failed.");
                       } finally {
+                        deleting.current = false;
                         setBusy(false);
                       }
                     }}

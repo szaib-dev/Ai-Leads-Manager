@@ -7,9 +7,11 @@ export const statuses = [
   "Follow-up",
   "Meeting Booked",
   "Awaiting Callback",
+  "WhatsApp",
 ] as const;
 export type LeadStatus = (typeof statuses)[number];
 export interface Lead {
+  deleted?: boolean;
   previouslyImported?: boolean;
   country?: string;
   updatedAt?: string;
