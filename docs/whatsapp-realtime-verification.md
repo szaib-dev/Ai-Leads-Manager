@@ -31,3 +31,8 @@ The new partial index supports the bounded 15-row WhatsApp queue. Publication re
 Supabase db push --linked --dry-run returned HTTP 403: account lacks privileges for the database login-role endpoint. No migrations were applied. Publication state, database plans, actual persisted WhatsApp transitions, two authenticated browser sessions, mobile interaction performance and end-to-end failure rollback remain unverified. No before/after response times are claimed.
 
 After access is restored: apply migrations; inspect publication INSERT/UPDATE configuration and owner SELECT policy; run authenticated browser contexts against the same test account, exercise import/status/attempt/followup/delete and verify both records and counts, then disconnect/reconnect the second context and verify reconciliation. Throttle and abort mutation requests to verify rollback, preserve filters and pagination, measure click-to-render, server confirmation and second-context visibility separately, and verify attempts remain unchanged by WhatsApp actions. Repeat at a mobile viewport.
+
+
+## Production repair follow-up
+
+The access blocker above was resolved later on 2026-11-05. Migrations 019 and 020 are now applied and the deployed Vercel app has been tested with two authenticated browser sessions against the actual remote database. See [production repair verification](whatsapp-database-repair.md).

@@ -20,6 +20,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+
       graphql: {
         Args: {
           extensions?: Json
@@ -517,6 +518,9 @@ export type Database = {
           status: Database["public"]["Enums"]["lead_status"]
           subject_id: string
           updated_at: string
+          whatsapp_status: string
+          whatsapp_notes: string
+          whatsapp_last_interaction: string | null
           website_url: string | null
         }
         Insert: {
@@ -542,6 +546,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["lead_status"]
           subject_id?: string
           updated_at?: string
+          whatsapp_status?: string
+          whatsapp_notes?: string
+          whatsapp_last_interaction?: string | null
           website_url?: string | null
         }
         Update: {
@@ -567,6 +574,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["lead_status"]
           subject_id?: string
           updated_at?: string
+          whatsapp_status?: string
+          whatsapp_notes?: string
+          whatsapp_last_interaction?: string | null
           website_url?: string | null
         }
         Relationships: [
@@ -873,6 +883,10 @@ export type Database = {
       }
     }
     Functions: {
+      manage_whatsapp: {
+        Args: { p_id: string; p_expected: string; p_status: string; p_notes: string; p_date: string | null }
+        Returns: undefined
+      }
       activity_range: {
         Args: {
           p_from: string
@@ -1107,6 +1121,7 @@ export type Database = {
         | "failed"
         | "rolled_back"
       lead_status:
+        | "whatsapp"
         | "new"
         | "no_answer"
         | "voicemail"
@@ -1279,6 +1294,7 @@ export const Constants = {
         "rolled_back",
       ],
       lead_status: [
+        "whatsapp",
         "new",
         "no_answer",
         "voicemail",

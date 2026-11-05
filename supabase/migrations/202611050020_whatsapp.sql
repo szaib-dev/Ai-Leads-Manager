@@ -1,10 +1,10 @@
 -- Manual messaging is a lead workflow, never a call_attempt.
-alter table public.leads add column whatsapp_status text not null default 'Waiting for Reply'
+alter table public.leads add column if not exists whatsapp_status text not null default 'Waiting for Reply'
  check (whatsapp_status in ('Waiting for Reply','In Conversation','Interested','Closed'));
-alter table public.leads add column whatsapp_notes text not null default '';
-alter table public.leads add column whatsapp_last_interaction date;
-create index leads_whatsapp_queue on public.leads(owner_id,updated_at desc,id) where status='whatsapp' and deleted_at is null and archived_at is null;
-create function public.manage_whatsapp(p_id uuid,p_expected timestamptz,p_status text,p_notes text,p_date date) returns void
+alter table public.leads add column if not exists whatsapp_notes text not null default '';
+alter table public.leads add column if not exists whatsapp_last_interaction date;
+create index if not exists leads_whatsapp_queue on public.leads(owner_id,updated_at desc,id) where status='whatsapp' and deleted_at is null and archived_at is null;
+create or replace function public.manage_whatsapp(p_id uuid,p_expected timestamptz,p_status text,p_notes text,p_date date) returns void
 language plpgsql security definer set search_path='' as $$
 declare c uuid;begin
  if p_status is null or p_status not in ('Waiting for Reply','In Conversation','Interested','Closed') or p_notes is null or octet_length(p_notes)>16000 then raise exception 'Invalid conversation details';end if;
@@ -21,3 +21,6 @@ do $$begin
  if not exists(select 1 from pg_publication where pubname='supabase_realtime') then create publication supabase_realtime;end if;
  if not exists(select 1 from pg_publication where pubname='supabase_realtime' and puballtables) and not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='workspace_sync') then alter publication supabase_realtime add table public.workspace_sync;end if;
 end $$;
+
+-- Notify only after the transaction commits.
+notify pgrst, 'reload schema';
