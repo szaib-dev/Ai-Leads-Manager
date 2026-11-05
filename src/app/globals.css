@@ -3281,3 +3281,25 @@ small,
 .whatsapp-table .conversation-notes { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .whatsapp-table td:nth-child(5), .whatsapp-table th:nth-child(5) { display: table-cell; }
 .conversation-editor { display: grid; gap: 16px; }
+
+/* Keep long business details inside the scrollable panel. */
+.mobile-nav-label { display: none; }
+.detail-panel { overflow-x: hidden; overflow-wrap: anywhere; }
+.detail-panel > *, .detail-info > *, .detail-facts > * { min-width: 0; }
+.detail-info > span, .detail-info > a { overflow-wrap: anywhere; }
+.detail-info > a { flex-wrap: wrap; }
+.detail-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.detail-panel input, .detail-panel textarea { min-width: 0; max-width: 100%; }
+.detail-panel textarea { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .desktop-nav-label { display: none; }
+  .mobile-nav-label { display: inline; }
+  .bottom-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; }
+  .bottom-nav > a, .bottom-nav > button { min-width: 0; }
+  .bottom-nav > a > span, .bottom-nav > button > span { white-space: nowrap; }
+  .bottom-nav > a > svg, .bottom-nav > button > svg { width: 21px; height: 21px; }
+  .breadcrumb-current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail-actions { flex-wrap: wrap; }
+  .detail-actions .button { flex: 1 1 140px; min-width: 0; }
+  .detail-panel .dialog-actions { flex-wrap: wrap; }
+}

@@ -175,7 +175,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
               <span className="breadcrumb-root">Workspace</span>
               <ChevronRight size={13} />
-              <span>{current.label}</span>
+              <span className="breadcrumb-current">
+                <span className="desktop-nav-label">{current.label}</span>
+                <span className="mobile-nav-label">{current.href === "/dash/whatsapp" ? "WhatsApp" : current.label}</span>
+              </span>
               {page && (
                 <>
                   <ChevronRight size={13} />
@@ -259,7 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
           >
             <Icon size={21} />
-            <span>{label === "Lead pages" ? "Leads" : label}</span>
+            <span>{href === "/dash/whatsapp" ? "WhatsApp" : label === "Lead pages" ? "Leads" : label}</span>
           </Link>
         ))}
         <DropdownMenu>
