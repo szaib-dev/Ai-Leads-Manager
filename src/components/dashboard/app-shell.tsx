@@ -1,4 +1,6 @@
 "use client";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { CountryFolders } from "@/components/leads/country-folders";
 import Link from "next/link";
 import { SyncIndicator } from "@/components/shared/sync-indicator";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { theme, setTheme } = useTheme();
   const { pages } = useWorkspace();
+  const [foldersOpen,setFoldersOpen]=useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
@@ -56,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const activePage = pages.find((p) => path === `/dash/pages/${p.id}`);
     router.push(activePage ? `/dash/ai?page=${activePage.id}` : "/dash/ai");
   }
-  const current = nav.find((n) => n.href === path) ?? nav[1];
+  const current = nav.find((n) => n.href === path) ?? nav.find(n=>n.href === "/dash/pages")!;
   const page = pages.find((p) => path === `/dash/pages/${p.id}`);
   const followups = pages.reduce(
     (total, page) => total + page.followupCount,
@@ -93,11 +96,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               title={label}
               aria-label={label}
               aria-current={
-                (href === "/dash" ? path === href : path.startsWith(href))
+                ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/")))
                   ? "page"
                   : undefined
               }
-              className={`nav-item ${(href === "/dash" ? path === href : path.startsWith(href)) ? "active" : ""}`}
+              className={`nav-item ${((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/"))) ? "active" : ""}`}
             >
               <Icon size={19} />
               <span>{label}</span>
@@ -109,19 +112,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-pages">
           <div className="nav-caption">
-            YOUR PAGES <Folder size={13} />
+            COUNTRIES <Folder size={13} />
           </div>
-          {pages.slice(0, 5).map((p) => (
-            <Link
-              href={`/dash/pages/${p.id}`}
-              key={p.id}
-              className="sidebar-page"
-            >
-              <span className={`page-dot ${p.color}`} />
-              {p.name}
-              <ChevronRight size={13} />
-            </Link>
-          ))}
+          <CountryFolders />
         </div>
         <div className="sidebar-bottom">
           <DropdownMenu>
@@ -256,7 +249,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             key={href}
             href={href}
             aria-current={
-              (href === "/dash" ? path === href : path.startsWith(href))
+              ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/")))
                 ? "page"
                 : undefined
             }
@@ -280,6 +273,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top">
+            <DropdownMenuItem onSelect={()=>setFoldersOpen(true)}><Folder size={16}/>Country folders</DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/dash/callbacks"><CalendarClock size={16} />Awaiting Callbacks</Link></DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/dash/activity">
@@ -305,6 +299,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
+      <Dialog open={foldersOpen} onOpenChange={setFoldersOpen}><DialogContent onClick={event=>{if((event.target as Element).closest("a"))setFoldersOpen(false);}}><DialogTitle>Lead Pages</DialogTitle><DialogDescription>Countries and their lead pages.</DialogDescription><CountryFolders/></DialogContent></Dialog>
       <ApplicationSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

@@ -234,7 +234,7 @@ export async function importCsv(
       mode === "new"
         ? z.string().trim().min(1).max(100).parse(input.newName)
         : null;
-    const data = await rpc("commit_import", {
+    const importArgs = {
       p_request: requestId,
       p_page: pageId,
       p_new_name: newName,
@@ -243,7 +243,14 @@ export async function importCsv(
       p_rows: parsed.valid,
       p_total: parsed.total,
       p_invalid: parsed.invalid.length,
-    });
+    };
+    const country = form.get("countryId");
+    let data;
+    if(country) {
+      const { client } = await databaseContext();
+      const r = await client.rpc("import_in_country" as never, {p_country:uuidSchema.parse(country),p_payload:importArgs} as never);
+      if(r.error) throw new Error(r.error.message); data=r.data;
+    } else data=await rpc("commit_import",importArgs);
     return { data: data as unknown as ImportResult };
   } catch (error) {
     return { error: message(error) };

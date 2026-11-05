@@ -1,5 +1,5 @@
-import { PagesManager } from "@/components/leads/pages-manager";
+import { CountryBrowser } from "@/components/leads/countries";
 export const metadata = { title: "Lead pages" };
 export default function Pages() {
-  return <PagesManager />;
+  return <CountryBrowser />;
 }

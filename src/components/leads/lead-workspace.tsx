@@ -1,4 +1,6 @@
 "use client";
+import { fetchCountries } from "@/lib/leads/country-actions";
+import { useQuery } from "@/lib/workflows/use-query";
 import { publishLead } from "@/lib/realtime/lead-updates";
 import { ReimportBadge } from "./reimport-badge";
 import { SelectionDelete } from "./selection-delete";
@@ -80,6 +82,9 @@ export function LeadWorkspace({
     toggleAiLead,
     clearAiSelection,
   } = useWorkspace();
+  const countryStructure = useQuery("country-structure",fetchCountries);
+  const parentCountry = countryStructure.data?.assignments.find(p=>p.id===pageId)?.country_id;
+  const parentName = countryStructure.data?.countries.find(c=>c.id===parentCountry)?.name || "Unassigned";
   const viewKey = `folio.lead-view:${ownerId}:${mode}:${pageId ?? "all"}`;
   const desktopView = useSessionLeadView(`${viewKey}:desktop`, freshFilters);
   const mobileView = useSessionLeadView(`${viewKey}:mobile`, freshFilters);
@@ -633,9 +638,9 @@ export function LeadWorkspace({
     <>
       <div className="back-row">
         {mode === "page" ? (
-          <Link href="/dash/pages">
+          <Link href={`/dash/countries/${parentCountry || "unassigned"}`}>
             <ArrowLeft size={14} />
-            All lead pages
+            Lead Pages / {parentName}
           </Link>
         ) : (
           <span className="eyebrow">YOUR CALLING WORKSPACE</span>

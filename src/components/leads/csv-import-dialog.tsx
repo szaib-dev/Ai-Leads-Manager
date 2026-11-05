@@ -1,4 +1,6 @@
 "use client";
+import { fetchCountries } from "@/lib/leads/country-actions";
+import { useQuery } from "@/lib/workflows/use-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { useMemo, useState, useRef } from "react";
@@ -30,15 +32,21 @@ import { useWorkspace } from "@/components/providers";
 import styles from "./imports.module.css";
 export function CsvImportDialog({
   pageId,
+  initialCountryId,
   onClose,
   onImported,
 }: {
   pageId?: string;
+  initialCountryId?: string;
   onClose: () => void;
   onImported: () => void;
 }) {
   const { pages, refreshPages, setRecentAiImport } = useWorkspace();
   const router = useRouter();
+  const countries = useQuery("country-structure",fetchCountries);
+  const [country,setCountry] = useState(initialCountryId === "unassigned" ? "" : initialCountryId || "");
+  const countryPages = pages.filter(p => !country || countries.data?.assignments.some(a => a.id===p.id && a.country_id===country));
+
   const [csv, setCsv] = useState<ReturnType<typeof parseCsv> | null>(null),
     [text, setText] = useState(""),
     [fileName, setFileName] = useState(""),
@@ -46,7 +54,7 @@ export function CsvImportDialog({
   const [mode, setMode] = useState<"append" | "replace" | "new">(
       pageId ? "append" : "new",
     ),
-    [target, setTarget] = useState(pageId || pages[0]?.id || ""),
+    [target, setTarget] = useState(pageId || (initialCountryId ? "" : pages[0]?.id) || ""),
     [name, setName] = useState("");
   const [review, setReview] =
       useState<Awaited<ReturnType<typeof previewImport>>["data"]>(),
@@ -114,6 +122,7 @@ export function CsvImportDialog({
       if (!name.trim()) setName(pageName);
       setAiBusy(true);
       const prepared = await prepareCsvImport({
+        countryId: country || undefined,
         text: raw,
         fileName: file.name,
         pageId: target || undefined,
@@ -137,6 +146,7 @@ export function CsvImportDialog({
       if (prepared.data.reviewReason) setAiError(prepared.data.reviewReason);
       if (prepared.data.result) {
         setResult(prepared.data.result);
+
         setRecentAiImport(prepared.data.result.id);
         onImported();
         void refreshPages().catch(() => setError("Import saved. Counts will retry when connected."));
@@ -225,6 +235,7 @@ export function CsvImportDialog({
           </>
         ) : (
           <>
+            <label className="field-label">Country<Select aria-label="Import country" value={country} disabled={busy} onValueChange={value=>{setCountry(value);setTarget("");setReview(undefined);}}><option value="">Unassigned / all pages</option>{countries.data?.countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>
             <input
               ref={fileInput}
               className="sr-only"
@@ -483,7 +494,7 @@ export function CsvImportDialog({
                           setConfirmed(false);
                         }}
                       >
-                        {pages.map((p) => (
+                        {countryPages.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
                           </option>
@@ -682,6 +693,7 @@ export function CsvImportDialog({
                           cleanup: JSON.stringify(cleanup),
                           preserveExtra: String(preserveExtra),
                           fileName,
+                          countryId: country,
                           mode,
                           pageId: target,
                           newName: name,
@@ -691,6 +703,7 @@ export function CsvImportDialog({
                       if (r.error) setError(r.error);
                       else {
                         setResult(r.data);
+
                         setRecentAiImport(r.data!.id);
                         onImported();
                         void refreshPages().catch(() => setError("Import saved. Counts will retry when connected."));
