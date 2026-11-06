@@ -10,6 +10,7 @@ const headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff
  * Never derive resource URIs or auth URLs from untrusted forwarded Host headers.
  */
 export async function GET() {
+  if (process.env.FOLIO_OAUTH_ENABLED !== "true") return Response.json({error: "OAuth integration is not enabled"}, {status: 503, headers});
   const config = getSupabaseConfig();
   if (!config) return Response.json({error: "OAuth provider is not configured"}, {status: 503, headers});
   const resource = "https://ai-leads-manager-burak.vercel.app/mcp";
