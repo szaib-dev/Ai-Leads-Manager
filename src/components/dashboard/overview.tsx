@@ -1,4 +1,5 @@
 "use client";
+import { DailyDiscipline } from "./daily-discipline";
 import Link from "next/link";
 
 import { fetchAnalytics } from "@/lib/analytics/actions";
@@ -142,6 +143,7 @@ export function Overview() {
           </Button>
         }
       />
+      <DailyDiscipline />
       <AnalyticsControls state={filters} />
       {q.error && (
         <p role="alert" className="info-box">
