@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const activePage = pages.find((p) => path === `/dash/pages/${p.id}`);
     router.push(activePage ? `/dash/ai?page=${activePage.id}` : "/dash/ai");
   }
-  const current = nav.find((n) => n.href === path) ?? nav.find(n=>n.href === "/dash/pages")!;
+  const current = path.startsWith("/dash/settings/") ? {href:path,label:"Integrations",icon:Settings2} : nav.find((n) => n.href === path) ?? nav.find(n=>n.href === "/dash/pages")!;
   const page = pages.find((p) => path === `/dash/pages/${p.id}`);
   const followups = pages.reduce(
     (total, page) => total + page.followupCount,

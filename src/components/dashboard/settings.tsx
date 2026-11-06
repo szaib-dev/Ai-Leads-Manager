@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Dialog,
@@ -31,6 +32,7 @@ export function ApplicationSettings({
         <DialogDescription>
           Import preferences are private to your authenticated account.
         </DialogDescription>
+        <section className="settings-integration-link"><h3>Integrations & API</h3><p className="small muted">Generate secrets, manage permissions and review requests.</p><Button asChild variant="outline"><Link href="/dash/settings/integrations" onClick={()=>onOpenChange(false)}>Manage integrations</Link></Button></section>
         <h3 style={{ fontSize: 14, marginBottom: 12 }}>AI CSV Import</h3>
         <fieldset className="import-mode-options" disabled={busy || !q.data}>
           {(

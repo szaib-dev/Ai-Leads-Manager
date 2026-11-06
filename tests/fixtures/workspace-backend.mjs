@@ -1,7 +1,7 @@
 // Local browser-only transport fixture. This file is never imported by application code.
 import { createServer } from "node:http";
 import { writeFileSync, readFileSync, existsSync } from "node:fs";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 export async function startWorkspaceFixture() {
   const pages = [],
     leads = [],
@@ -9,6 +9,8 @@ export async function startWorkspaceFixture() {
     messages = [],
     calls = [],
     operations = [];
+  const apiKeys=[], apiLogs=[], apiFollowups=[], apiReceipts=new Map();
+  let apiEnabled=true;
   let user,
     revision = 0;
   const ledgerPath = ".local-test-output/provider-verification-usage.json";
@@ -90,6 +92,25 @@ export async function startWorkspaceFixture() {
           leads.push({id:randomUUID(),owner_id:user.id,page_id:target,phone:"",website_url:"",country:"",location:"",status:"new",notes:"",attempts:0,failed_attempts:0,updated_at:now(),created_at:now(),archived_at:null,deleted_at:null,...entry});imported++;
         }
         revision++;const result={id:randomUUID(),pageId:target,imported,duplicates,invalid:0,replaced:0};importRequests.set(body.p_request,result);return send(result);
+      }
+      // UI transport fixture only. Database authorization is tested in integrations.sql.
+      if(name === "integration_state") return send({enabled:apiEnabled,keys:apiKeys.map(({secret_hash,...key})=>{void secret_hash;return key;}),logs:apiLogs.slice(-30).reverse()});
+      if(name === "integration_toggle"){apiEnabled=body.p_enabled;return send(null);}
+      if(name === "integration_manage_key"){
+        if(!body.p_id) {const k={id:randomUUID(),name:body.p_name,prefix:body.p_prefix,secret_hash:body.p_hash,scopes:body.p_scopes,enabled:true,revoked_at:null,expires_at:body.p_expires,last_used_at:null};apiKeys.push(k);return send(k.id);}
+        const k=apiKeys.find(k=>k.id===body.p_id);if(!k||k.revoked_at){res.writeHead(400);return send({message:"Key unavailable"});}k.scopes=body.p_scopes;k.enabled=body.p_enabled;if(body.p_revoke)k.revoked_at=now();return send(k.id);
+      }
+      if(name === "integration_request"){
+        const k=apiKeys.find(k=>k.secret_hash===createHash("sha256").update(body.p_token).digest("hex"));let status=200,code="ok",data;
+        const scope=["pages.list","leads.search","leads.get"].includes(body.p_action)?"leads.read":body.p_action;
+        if(!k||k.revoked_at){status=401;code="invalid_api_key";}else if(!apiEnabled||!k.enabled){status=403;code="api_disabled";}else if(!k.scopes.includes(scope)){status=403;code="permission_disabled";}
+        if(status===200){const receipt=apiReceipts.get(k.id+body.p_request);
+          if(receipt)data=receipt;
+          else if(body.p_action==="pages.list")data=pages;
+          else if(body.p_action==="leads.search")data=leads.filter(l=>l.business_name.includes(body.p_payload.query));
+          else if(body.p_action==="meetings.create"){const l=leads.find(l=>l.id===body.p_payload.leadId);l.status="meeting_booked";l.updated_at=now();const local=new Date(Date.parse(body.p_payload.startsAt)+5*3600000).toISOString();const f={id:randomUUID(),lead_id:l.id,owner_id:user.id,scheduled_date:local.slice(0,10),scheduled_time:local.slice(11,19),kind:"meeting",cancelled_at:null};apiFollowups.push(f);data={id:f.id,leadId:l.id};apiReceipts.set(k.id+body.p_request,data);revision++;}
+        }
+        if(k)apiLogs.push({id:randomUUID(),key_id:k.id,request_id:body.p_request,action:body.p_action,status,code,created_at:now()});return send({status,body:status===200?{data}:{error:{code}}});
       }
       if (name === "ai_csv_reserve") {
         const cost = (body.p_input_bound * 0.3 + 1024 * 1.2) / 1000000;
@@ -344,7 +365,7 @@ export async function startWorkspaceFixture() {
     if (url.pathname.startsWith("/rest/v1/")) {
       const table = url.pathname.split("/").at(-1);
       let data =
-        table === "leads"
+        table === "followups" ? apiFollowups : table === "leads"
           ? leads
           : table === "operations"
             ? operations

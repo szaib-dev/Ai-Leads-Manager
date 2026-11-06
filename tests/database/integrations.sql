@@ -1,0 +1,48 @@
+\set ON_ERROR_STOP on
+begin;
+insert into auth.users(id) values('a0000000-0000-4000-8000-000000000001'),('b0000000-0000-4000-8000-000000000001');
+select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claims','{"sub":"a0000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+create function pg_temp.check_api(r jsonb,want int) returns void language plpgsql as $$begin if (r->>'status')::int is distinct from want then raise exception 'Expected %, got %',want,r;end if;end$$;
+do $$declare p uuid;k uuid;r jsonb;lid uuid;mid uuid;stamp text;req uuid=gen_random_uuid();token text='folio_'||repeat('a',64);begin
+ p=public.manage_page(null,'API tests','',false);
+ k=public.integration_manage_key(null,'QA',array['leads.read','leads.create','leads.import','leads.archive','leads.update','leads.delete','meetings.read','meetings.create','meetings.update','meetings.cancel','followups.create'],true,false,encode(sha256(convert_to(token,'UTF8')),'hex'),'folio_aaaaaaaa',now()+interval '90 days');
+ perform pg_temp.check_api(public.integration_request('folio_'||repeat('f',64),'pages.list','{}',gen_random_uuid()),401);
+ r=public.integration_request(token,'leads.create',jsonb_build_object('pageId',p,'lead',jsonb_build_object('business_name','QA','status','new')),req);perform pg_temp.check_api(r,200);
+ perform pg_temp.check_api(public.integration_request(token,'leads.create',jsonb_build_object('pageId',p,'lead',jsonb_build_object('business_name','QA','status','new')),req),200);
+ if(select count(*) from public.leads where page_id=p)<>1 then raise exception 'Duplicate retry';end if;
+ perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',req),409);
+ select id,updated_at::text into lid,stamp from public.leads where page_id=p;
+ r=public.integration_request(token,'meetings.create',jsonb_build_object('leadId',lid,'expectedUpdatedAt',stamp,'startsAt','2030-07-01T10:00:00-04:00','timezone','America/New_York','notes','QA'),gen_random_uuid());perform pg_temp.check_api(r,200);mid=(r#>>'{body,data,id}')::uuid;
+ if not exists(select 1 from public.followups where id=mid and scheduled_time='19:00') then raise exception 'Wrong Pakistan time';end if;
+ if exists(select 1 from public.call_attempts where lead_id=lid) then raise exception 'Fake attempt';end if;
+ select updated_at::text into stamp from public.leads where id=lid;
+ perform pg_temp.check_api(public.integration_request(token,'leads.archive',jsonb_build_object('id',lid,'expectedUpdatedAt',stamp),gen_random_uuid()),409);
+ r=public.integration_request(token,'meetings.update',jsonb_build_object('id',mid,'leadId',lid,'expectedUpdatedAt',stamp,'startsAt','2030-12-01T10:00:00-05:00','timezone','America/New_York'),gen_random_uuid());perform pg_temp.check_api(r,200);mid=(r#>>'{body,data,id}')::uuid;
+ if not exists(select 1 from public.followups where id=mid and scheduled_time='20:00') then raise exception 'Wrong winter conversion';end if;
+ select updated_at::text into stamp from public.leads where id=lid;
+ perform pg_temp.check_api(public.integration_request(token,'meetings.cancel',jsonb_build_object('id',mid,'leadId',lid,'expectedUpdatedAt',stamp),gen_random_uuid()),200);
+ select updated_at::text into stamp from public.leads where id=lid;
+ perform pg_temp.check_api(public.integration_request(token,'followups.create',jsonb_build_object('leadId',lid,'expectedUpdatedAt',stamp,'startsAt','2030-12-02T10:00:00Z','timezone','UTC'),gen_random_uuid()),200);
+ perform public.integration_manage_key(k,null,array['leads.read'],true,false,null,null,null);
+ perform pg_temp.check_api(public.integration_request(token,'meetings.create','{}',gen_random_uuid()),403);
+ perform public.integration_toggle(false);perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',gen_random_uuid()),403);perform public.integration_toggle(true);
+ perform public.integration_manage_key(k,null,array['leads.read'],false,false,null,null,null);perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',gen_random_uuid()),403);
+ perform public.integration_manage_key(k,null,array['leads.read'],true,false,null,null,null);
+ perform set_config('request.jwt.claim.sub','b0000000-0000-4000-8000-000000000001',true);
+ if jsonb_array_length(public.integration_state()->'keys')<>0 then raise exception 'Owner isolation';end if;
+ begin perform public.integration_manage_key(k,null,array['leads.read'],true,false,null,null,null);raise exception 'Cross owner allowed';exception when others then if sqlerrm='Cross owner allowed' then raise;end if;end;
+ perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
+ if public.integration_state()::text like '%secret_hash%' or public.integration_state()::text like '%'||token||'%' then raise exception 'Secret exposed';end if;
+ insert into public.integration_logs(owner_id,key_id,request_id,action,status,code) select 'a0000000-0000-4000-8000-000000000001',k,gen_random_uuid(),'pages.list',200,'ok' from generate_series(1,60);
+ perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',gen_random_uuid()),429);
+ perform public.integration_manage_key(k,null,array['leads.read'],false,true,null,null,null);perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',gen_random_uuid()),401);
+ raise notice 'PASS: capabilities, owner isolation, revoke/pause, idempotency, rate limiting, timezones, followups and no fabricated calls';
+end $$;
+set local role anon;
+do $$begin
+ begin perform public.integration_state();raise exception 'Anonymous settings access';exception when insufficient_privilege then null;end;
+ begin perform secret_hash from public.integration_keys;raise exception 'Anonymous hash access';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+rollback;
