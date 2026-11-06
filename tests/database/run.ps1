@@ -22,6 +22,10 @@ try {
   $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | Where-Object Name -LT '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'security.sql'),(Join-Path $PSScriptRoot 'imports.sql')) + @($migrations | Where-Object Name -GE '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'workflows.sql'),(Join-Path $PSScriptRoot 'workflow-integrity.sql'),(Join-Path $PSScriptRoot 'analytics.sql'),(Join-Path $PSScriptRoot 'ai-mapping.sql'),(Join-Path $PSScriptRoot 'assistant.sql'),(Join-Path $PSScriptRoot 'assistant-safety.sql'),(Join-Path $PSScriptRoot 'chat.sql'),(Join-Path $PSScriptRoot 'intelligent-imports.sql'),(Join-Path $PSScriptRoot 'chat-tools.sql'),(Join-Path $PSScriptRoot 'critical-fixes.sql'),(Join-Path $PSScriptRoot 'conversational-files.sql'),(Join-Path $PSScriptRoot 'integrations.sql'))
   if ($ChatToolsOnly) { $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'chat-tools.sql'),(Join-Path $PSScriptRoot 'critical-fixes.sql'),(Join-Path $PSScriptRoot 'conversational-files.sql'),(Join-Path $PSScriptRoot 'integrations.sql')) }
   foreach ($file in $files) {
+    if ((Split-Path $file -Leaf) -eq '202611070025_oauth.sql') {
+      & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'oauth-before.sql')
+      if ($LASTEXITCODE -ne 0) { throw 'OAuth privilege baseline failed' }
+    }
     & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f $file
     if ($LASTEXITCODE -ne 0) { throw "SQL check failed: $file" }
   }

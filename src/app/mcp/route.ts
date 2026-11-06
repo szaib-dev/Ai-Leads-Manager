@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {createClient} from "@supabase/supabase-js";
 import {z} from "zod";
+import {documentedActions} from "@/lib/integrations/documentation";
 import {bearer, requestSchema} from "@/lib/integrations/contracts";
 import {oauthConfig, oauthEnabled, verifyOAuth} from "@/lib/integrations/oauth";
 import {getSupabaseConfig} from "@/lib/supabase/config";
@@ -44,19 +45,20 @@ export async function POST(request:Request) {
     const msg=parsed.data;
     const reply=(result:unknown)=>Response.json({jsonrpc:"2.0",id:msg.id,result},{headers});
     if(msg.id===undefined)return new Response(null,{status:202,headers});
-    if(msg.method==="initialize")return reply({protocolVersion:"2025-11-25",capabilities:{tools:{listChanged:false}},serverInfo:{name:"Folio",version:"1.0.0"}});
+    if(msg.method==="initialize")return reply({protocolVersion:"2025-11-25",capabilities:{tools:{listChanged:false}},serverInfo:{name:"folio-lead-manager",version:"1.0.0"},instructions:"Search and read exact IDs and updated_at before edits. Never infer an ID from a business name. No phone-call attempt logging is supported."});
     if(msg.method==="ping")return reply({});
-    if(msg.method==="tools/list")return reply({tools:requestSchema.options.map(option=>({name:"folio_"+option.shape.action.value.replaceAll(".","_"),description:`Folio ${option.shape.action.value}. Mutations require idempotencyKey; use current updated_at for concurrency.`,inputSchema:{type:"object",properties:{data:z.toJSONSchema(option.shape.data),idempotencyKey:{type:"string",format:"uuid"}},required:["data"],additionalProperties:false}}))});
+    if(msg.method==="tools/list")return reply({tools:requestSchema.options.map(option=>({name:"folio_"+option.shape.action.value.replaceAll(".","_"),annotations:{readOnlyHint:["pages.list","leads.search","leads.get","meetings.list"].includes(option.shape.action.value),destructiveHint:["leads.delete","leads.archive","meetings.cancel"].includes(option.shape.action.value),openWorldHint:false},description:documentedActions.find(entry=>entry.request.action===option.shape.action.value)!.description+" Use current updated_at for concurrency. Reuse the returned idempotencyKey for retries.",inputSchema:{type:"object",properties:{data:z.toJSONSchema(option.shape.data),idempotencyKey:{type:"string",format:"uuid"}},required:["data"],additionalProperties:false}}))});
     if(msg.method==="tools/call") {
       const p=z.object({name:z.string(),arguments:z.object({data:z.unknown(),idempotencyKey:z.uuid().optional()}).strict()}).strict().safeParse(msg.params);
       if(p.success){
         const action=p.data.name.replace(/^folio_/,"").replaceAll("_",".");const input=requestSchema.safeParse({action,data:p.data.arguments.data});
         if(input.success){
           const read=["pages.list","leads.search","leads.get","meetings.list"].includes(action);
-          if(!read&&!p.data.arguments.idempotencyKey)return reply({isError:true,content:[{type:"text",text:"A UUID idempotencyKey is required for mutations."}]});
-          const result=await execute(action,input.data.data,p.data.arguments.idempotencyKey||randomUUID());
+          if(read&&p.data.arguments.idempotencyKey)return Response.json({jsonrpc:"2.0",id:msg.id,error:{code:-32602,message:"Read action cannot have an idempotency key"}},{headers});
+          const requestId=p.data.arguments.idempotencyKey||randomUUID();
+          const result=await execute(action,input.data.data,requestId);
           if(result.status===401)return challenge();if(result.status===403)return challenge(403);
-          return reply({isError:result.status!==200,content:[{type:"text",text:JSON.stringify(result.body)}]});
+          return reply({isError:result.status!==200,content:[{type:"text",text:JSON.stringify({status:result.status,body:result.body,...(!read?{idempotencyKey:requestId}:{})})}]});
         }
       }
       return Response.json({jsonrpc:"2.0",id:msg.id,error:{code:-32602,message:"Invalid tool arguments"}},{headers});
@@ -64,4 +66,5 @@ export async function POST(request:Request) {
     return Response.json({jsonrpc:"2.0",id:msg.id,error:{code:-32601,message:"Method not found"}},{headers});
   }catch{return Response.json({error:"integration_unavailable"},{status:503,headers});}
 }
+export async function DELETE(){return new Response(null,{status:405,headers:{...headers,Allow:"POST"}});}
 export async function GET(){return new Response(null,{status:405,headers:{...headers,Allow:"POST"}});}

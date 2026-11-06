@@ -6,7 +6,8 @@ export function oauthConfig() {
   const project = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!resource || !project) throw new Error("OAuth unavailable");
   const url = new URL(resource);
-  if (url.protocol !== "https:" || url.pathname !== "/mcp" || url.search || url.hash || url.username || url.password) throw new Error("Invalid OAuth resource");
+  const localHttp = url.protocol === "http:" && ["localhost","127.0.0.1"].includes(url.hostname);
+  if ((!localHttp && url.protocol !== "https:") || url.pathname !== "/mcp" || url.search || url.hash || url.username || url.password) throw new Error("Invalid OAuth resource");
   return {resource, issuer: `${new URL(project).origin}/auth/v1`};
 }
 const resolvers = new Map<string, JWTVerifyGetKey>();

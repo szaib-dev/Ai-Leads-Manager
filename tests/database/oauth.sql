@@ -1,5 +1,14 @@
 \set ON_ERROR_STOP on
 begin;
+do $$begin
+ if exists(select 1 from private.oauth_acl_baseline b where
+ has_function_privilege(b.rolname,b.oid,'execute') is distinct from b.allowed) then
+ raise exception 'Existing browser/API RPC privilege changed';end if;
+ if public.folio_access_token_hook('{"claims":{"role":"authenticated","aud":"authenticated"}}')
+ <> '{"claims":{"role":"authenticated","aud":"authenticated"}}'::jsonb then
+ raise exception 'Normal login hook changed claims';end if;
+end $$;
+
 insert into private.oauth_config values('https://folio.example/mcp');
 insert into auth.users values('a0000000-0000-4000-8000-000000000001'),('b0000000-0000-4000-8000-000000000001');
 select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);

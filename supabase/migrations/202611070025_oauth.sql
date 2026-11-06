@@ -1,11 +1,33 @@
 -- OAuth has a separate non-inheriting role: never grant authenticated membership.
 do $$begin if not exists(select 1 from pg_roles where rolname='folio_oauth') then create role folio_oauth nologin noinherit;end if;end $$;
+-- Refuse to reuse a privileged role left by unrelated/manual setup.
+do $$begin
+ if exists(select 1 from pg_roles where rolname='folio_oauth' and
+ (rolsuper or rolcanlogin or rolbypassrls or rolinherit)) or
+ exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.member where r.rolname='folio_oauth')
+ then raise exception 'folio_oauth must be an unprivileged isolated role';end if;
+end $$;
 grant folio_oauth to authenticator;
 grant usage on schema public to folio_oauth;
--- PUBLIC function privileges are inherited by every role. Remove legacy defaults.
-revoke execute on all functions in schema public from public;
+-- PUBLIC is inherited even by NOINHERIT roles. Before removing that implicit
+-- access, materialize the EXACT same existing execute access for browser/API
+-- roles. This adds no effective privilege and preserves legacy RPCs that relied
+-- on PUBLIC rather than explicit grants. Explicitly revoked RPCs stay revoked.
+-- Other deployed custom roles must be inventoried separately in staging.
+do $$declare f record;begin
+ for f in select p.oid::regprocedure as signature from pg_proc p
+ join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname='public' and p.prokind='f'
+ and exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+ where a.grantee=0 and a.privilege_type='EXECUTE') loop
+ execute format('grant execute on function %s to anon, authenticated',f.signature);
+ if exists(select 1 from pg_roles where rolname='service_role') then
+ execute format('grant execute on function %s to service_role',f.signature);end if;
+ execute format('revoke execute on function %s from public',f.signature);
+ end loop;
+end $$;
 alter default privileges in schema public revoke execute on functions from public;
-create table private.oauth_config(resource text primary key check(resource ~ '^https://[^/]+/mcp$'));
+create table private.oauth_config(resource text primary key check(resource ~ '^https://[^/]+/mcp$' or resource ~ '^http://(localhost|127[.]0[.]0[.]1):[0-9]{1,5}/mcp$'));
 create table private.oauth_grants(
  owner_id uuid not null references auth.users(id) on delete cascade,
  client_id uuid not null, key_id uuid not null references public.integration_keys(id),

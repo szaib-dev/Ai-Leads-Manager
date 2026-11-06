@@ -11,6 +11,10 @@ export default async function Consent({searchParams}:{searchParams:Promise<{auth
   if(!user)redirect(`/login?next=${encodeURIComponent(`/oauth/consent?authorization_id=${id}`)}`);
   const {data,error}=await client.auth.oauth.getAuthorizationDetails(id);
   if(error||!data)return <main>Authorization request unavailable.</main>;
-  if(!("client" in data))return <main>This authorization has already been decided. Start a new connection to change Folio permissions.</main>;
+  if(!("client" in data)){
+    const target=new URL(data.redirect_url);
+    if(target.protocol!=="https:" && !(target.protocol==="http:" && ["localhost","127.0.0.1"].includes(target.hostname)))return <main>Invalid callback address.</main>;
+    redirect(data.redirect_url);
+  }
   return <main style={{maxWidth:640,margin:"48px auto",padding:24}}><h1>Connect to Folio</h1><p>Client: {data.client.name}</p><p>Client ID: {data.client.id}</p><p>Registered website: {data.client.uri}</p><p>Redirect URI: {data.redirect_uri}</p><p>Identity scopes requested: {data.scope}</p><p>Select the Folio permissions you authorize for this client. Access expires after 90 days. Revoke access in OAuth connections.</p><form action="/api/oauth/decision" method="post"><input type="hidden" name="authorization_id" value={id}/>{Object.entries(permissions).map(([scope,label])=><label key={scope} style={{display:"block",margin:12}}><input type="checkbox" name="permissions" value={scope}/>{label}</label>)}<button name="decision" value="approve">Allow selected permissions</button> <button name="decision" value="deny">Deny</button></form><a href="/oauth/connections">OAuth connections</a></main>;
 }
