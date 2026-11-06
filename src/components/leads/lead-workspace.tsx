@@ -1,4 +1,6 @@
 "use client";
+import { ManualLeadDialog } from "./manual-lead-dialog";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { fetchCountries } from "@/lib/leads/country-actions";
 import { useQuery } from "@/lib/workflows/use-query";
 import { publishLead } from "@/lib/realtime/lead-updates";
@@ -92,6 +94,7 @@ export function LeadWorkspace({
   const { filters: mobile, setFilters: setMobile } = mobileView;
   const [selected, setSelected] = useLiveSelection<Lead | null>(null);
   const [attemptId, setAttemptId] = useLiveSelection<string | null>(null);
+  const [manualOpen,setManualOpen]=useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useLiveSelection<Lead | null>(null);
@@ -303,10 +306,7 @@ export function LeadWorkspace({
           </div>
         )}
         {remote.loading ? (
-          <div className="empty-state" role="status">
-            <div className="skeleton" style={{ height: 220, width: "100%" }} />
-            <span className="small muted">Loading leads�</span>
-          </div>
+          <ListSkeleton/>
         ) : remote.error ? (
           <EmptyState
             title="Could not load leads"
@@ -327,7 +327,7 @@ export function LeadWorkspace({
             description={
               summary.total === 0
                 ? mode === "page"
-                  ? "This page is ready for your leads. Import a CSV to get started."
+                  ? "This page is ready for your leads. Add a lead manually or import a CSV to get started."
                   : "Leads will appear here as you work through your calls."
                 : undefined
             }
@@ -672,6 +672,7 @@ export function LeadWorkspace({
               <Button variant="outline" onClick={() => setHistoryOpen(true)}>
                 Import history
               </Button>
+              <Button variant="outline" onClick={()=>setManualOpen(true)}><Plus size={16}/>Add lead</Button>
               <Button onClick={() => setImportOpen(true)}>
                 <Upload size={16} />
                 Import leads
@@ -821,6 +822,7 @@ export function LeadWorkspace({
           </div>
         </DialogContent>
       </Dialog>
+      {manualOpen&&<ManualLeadDialog pageId={pageId} onClose={()=>setManualOpen(false)} onSaved={()=>{setDesktop({...freshFilters});setMobile({...freshFilters});setVersion(v=>v+1);}}/>}
       {importOpen && (
         <CsvImportDialog
           pageId={pageId}

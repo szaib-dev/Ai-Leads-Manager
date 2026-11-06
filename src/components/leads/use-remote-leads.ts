@@ -1,5 +1,10 @@
 "use client";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { workspaceQueryKey } from "@/lib/query/cache";
+import { useEffect, useSyncExternalStore } from "react";
+import {
+  useQuery as useCachedQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers";
 import { replaceLead, subscribeLeadChanges } from "@/lib/realtime/lead-updates";
 import { fetchLeads } from "@/lib/leads/actions";
@@ -28,74 +33,69 @@ export function useRemoteLeads(
   enabled: boolean,
   version: number,
 ) {
-  const { canFetch, privacyEpoch } = useWorkspace();
-  const key = JSON.stringify([filters, pageId, mode, privacyEpoch]);
-  const [state, setState] = useState<{
-    key: string;
-    data: LeadResult;
-    error: string;
-  }>({ key: "", data: empty, error: "" });
-  if (state.key !== key || ((!enabled || !canFetch) && state.data !== empty))
-    setState({ key, data: empty, error: "" });
-  useEffect(() => {
-    if (!enabled || !canFetch) return;
-    let active = true;
-    const timer = setTimeout(
-      () => {
-        fetchLeads({ ...filters, pageId, mode })
-          .then((r) => {
-            if (active)
-              setState((previous) => ({
-                key,
-                data: r.data || previous.data,
-                error: r.error || "",
-              }));
-          })
-          .catch(() => {
-            if (active)
-              setState({
-                key,
-                data: empty,
-                error: "Could not load leads. Check your connection and retry.",
-              });
-          });
-      },
-      filters.search ? 250 : 0,
-    );
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [key, version, enabled, canFetch, filters, pageId, mode]);
+  const { canFetch, privacyEpoch, ownerId } = useWorkspace();
+  const queryKey = workspaceQueryKey(
+    ownerId,
+    privacyEpoch,
+    "leads",
+    filters,
+    pageId,
+    mode,
+    version,
+  );
+  const client = useQueryClient();
+  const query = useCachedQuery({
+    queryKey,
+    enabled: enabled && canFetch,
+    queryFn: async ({ signal }) => {
+      if (filters.search)
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      signal.throwIfAborted();
+      const result = await fetchLeads({ ...filters, pageId, mode });
+      signal.throwIfAborted();
+      if (result.error) throw new Error(result.error);
+      return result.data!;
+    },
+  });
+  const key = JSON.stringify(queryKey);
   useEffect(
     () =>
       subscribeLeadChanges((lead) => {
         if (enabled && canFetch)
-          setState((current) =>
-            current.key === key
-              ? {
-                  ...current,
-                  data: {
-                    ...current.data,
-                    rows: replaceLead(current.data.rows, lead),
-                  },
-                }
-              : current,
+          client.setQueryData<LeadResult>(JSON.parse(key), (data) =>
+            data ? { ...data, rows: replaceLead(data.rows, lead) } : data,
           );
       }),
-    [key, enabled, canFetch],
+    [key, enabled, canFetch, client],
   );
+  const state = {
+    key,
+    data: query.data || empty,
+    error: query.error?.message || "",
+  };
+
   return {
-    data: enabled && canFetch && state.key === key ? { ...state.data, rows: state.data.rows.filter(row => !row.deleted &&
-      (mode === "archive" ? row.archived : !row.archived) &&
-      (mode !== "page" || ["New", "Interested"].includes(row.status)) &&
-      (mode !== "attempts" || ["No Answer", "Voicemail"].includes(row.status)) &&
-      (mode !== "callbacks" || row.status === "Awaiting Callback")) } : empty,
-    error: state.key === key ? state.error : "",
-    loading:
-      enabled &&
-      (!canFetch ||
-        state.key !== key ||
-        (state.data === empty && !state.error)),
+    data:
+      enabled && canFetch && state.key === key
+        ? {
+            ...state.data,
+            rows: state.data.rows.filter(
+              (row) =>
+                !row.deleted &&
+                (mode === "archive" ? row.archived : !row.archived) &&
+                (mode !== "page" ||
+                  ["New", "Interested"].includes(row.status)) &&
+                (mode !== "attempts" ||
+                  ["No Answer", "Voicemail"].includes(row.status)) &&
+                (mode !== "callbacks" || row.status === "Awaiting Callback"),
+            ),
+          }
+        : empty,
+    error: !canFetch
+      ? "You are offline. Reconnect to load your leads."
+      : state.key === key
+        ? state.error
+        : "",
+    loading: enabled && canFetch && query.isPending,
   };
 }

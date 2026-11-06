@@ -17,6 +17,7 @@ export async function startWorkspaceFixture() {
     : [];
   const saveUsage = () =>
     writeFileSync(ledgerPath, JSON.stringify(usage, null, 2));
+  const importRequests = new Map();
   const now = () => new Date().toISOString();
   const server = createServer(async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -73,6 +74,23 @@ export async function startWorkspaceFixture() {
       const row = leads.find(
         (l) => l.id === (body.p_id ?? body.p_lead ?? body.p_lead_id),
       );
+      if(name === "country_structure")return send({countries:[],assignments:pages.map(p=>({id:p.id,country_id:null}))});
+      if(name === "manage_whatsapp"){
+        if(!row){res.writeHead(400);return send({message:"Lead unavailable"});}
+        Object.assign(row,{status:"whatsapp",whatsapp_status:body.p_status,whatsapp_notes:body.p_notes,whatsapp_last_interaction:body.p_date,updated_at:now()});revision++;return send(true);
+      }
+      if(name === "commit_import"){
+        if(importRequests.has(body.p_request))return send(importRequests.get(body.p_request));
+        let target=body.p_page;
+        if(body.p_mode==="new"){target=randomUUID();pages.push({id:target,name:body.p_new_name,description:"",created_at:now()});}
+        if(!pages.some(p=>p.id===target)){res.writeHead(400);return send({message:"Page unavailable"});}
+        let imported=0,duplicates=0;
+        for(const entry of body.p_rows){
+          if(entry.google_maps_url&&leads.some(l=>l.google_maps_url===entry.google_maps_url)){duplicates++;continue;}
+          leads.push({id:randomUUID(),owner_id:user.id,page_id:target,phone:"",website_url:"",country:"",location:"",status:"new",notes:"",attempts:0,failed_attempts:0,updated_at:now(),created_at:now(),archived_at:null,deleted_at:null,...entry});imported++;
+        }
+        revision++;const result={id:randomUUID(),pageId:target,imported,duplicates,invalid:0,replaced:0};importRequests.set(body.p_request,result);return send(result);
+      }
       if (name === "ai_csv_reserve") {
         const cost = (body.p_input_bound * 0.3 + 1024 * 1.2) / 1000000;
         if (usage.reduce((sum, x) => sum + x.cost, 0) + cost > 0.05) {

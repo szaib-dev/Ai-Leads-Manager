@@ -1,4 +1,6 @@
 "use client";
+import { createWorkspaceQueryClient } from "@/lib/query/cache";
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -50,6 +52,7 @@ export function Providers({
   ownerId: string;
   initialRevision: number;
 }) {
+  const [queryClient] = useState(createWorkspaceQueryClient);
   const [pages, setPages] = useState(initialRealPages),
     [revision, setRevision] = useState(0),
     [privacyEpoch, setPrivacyEpoch] = useState(0),
@@ -79,6 +82,10 @@ export function Providers({
       };
     });
   }
+  useEffect(()=>{
+    if(!canFetch){void queryClient.cancelQueries();queryClient.clear();}
+    else queryClient.removeQueries({predicate:q=>q.queryKey[0]!==ownerId||q.queryKey[1]!==privacyEpoch});
+  },[privacyEpoch,canFetch,ownerId,queryClient]);
   const controller = useRef<ReturnType<typeof startWorkspaceSync> | null>(null),
     flight = useRef<Promise<void> | null>(null),
     again = useRef(false),
@@ -222,7 +229,7 @@ export function Providers({
         toast,
       }}
     >
-      {children}
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       <div className="toast-region" aria-live="polite">
         {notice && (
           <div className="toast">

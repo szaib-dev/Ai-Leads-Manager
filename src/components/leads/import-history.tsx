@@ -1,4 +1,5 @@
 "use client";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useState } from "react";
 import { fetchImportHistory, undoImport } from "@/lib/leads/actions";
 import {
@@ -26,7 +27,7 @@ export function ImportHistory({
     [operationError, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [pending, setPending] = useState<string | null>(null);
-  const q = useQuery(JSON.stringify([pageId, page]), () =>
+  const q = useQuery(JSON.stringify(["import-history",pageId, page]), () =>
     fetchImportHistory(pageId, page),
   );
   const rows = q.data || [],
@@ -46,7 +47,7 @@ export function ImportHistory({
           import are protected.
         </DialogDescription>
         {loading ? (
-          <p className="muted small">Loading imports…</p>
+          <ListSkeleton rows={3}/>
         ) : !rows.length ? (
           <p className="muted small">No imports on this page.</p>
         ) : (

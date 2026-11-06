@@ -1,4 +1,5 @@
 "use client";
+import { FaWhatsapp } from "react-icons/fa";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CountryFolders } from "@/components/leads/country-folders";
 import Link from "next/link";
@@ -38,7 +39,7 @@ import { SignOutItem } from "@/components/auth/sign-out-item";
 const nav = [
   { href: "/dash", label: "Overview", icon: LayoutDashboard },
   { href: "/dash/pages", label: "Lead pages", icon: Folder },
-  { href: "/dash/whatsapp", label: "WhatsApp Conversations", icon: PhoneMissed },
+  { href: "/dash/whatsapp", label: "WhatsApp Conversations", icon: FaWhatsapp },
   { href: "/dash/attempts", label: "Attempts", icon: PhoneMissed },
   { href: "/dash/followups", label: "Follow-ups", icon: CalendarClock },
   { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: CalendarClock },
@@ -110,12 +111,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="sidebar-pages">
-          <div className="nav-caption">
-            COUNTRIES <Folder size={13} />
-          </div>
-          <CountryFolders />
-        </div>
         <div className="sidebar-bottom">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

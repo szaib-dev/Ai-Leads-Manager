@@ -1,4 +1,6 @@
 "use server";
+import { revalidatePath } from "next/cache";
+import { manualLeadSchema, type ManualLeadInput } from "./manual-contract";
 import { z } from "zod";
 import { databaseContext } from "@/lib/db/context";
 import { createPageSchema, uuidSchema } from "@/lib/validation/domain";
@@ -349,4 +351,14 @@ export async function previewImport(form: FormData): Promise<
   } catch (error) {
     return { error: message(error) };
   }
+}
+
+export async function createManualLead(input:ManualLeadInput):Promise<ActionResult<ImportResult>>{
+ try{
+  const p=manualLeadSchema.parse(input);
+  // Reuse the authenticated, atomic insert/deduplication path. Request ID makes retries safe.
+  const data=await rpc("commit_import",{p_request:p.requestId,p_page:p.pageId,p_new_name:null,p_mode:"append",p_file:"Manual entry",p_rows:[p.lead],p_total:1,p_invalid:0}) as unknown as ImportResult;
+  revalidatePath(`/dash/pages/${p.pageId}`);revalidatePath("/dash/pages");
+  return {data};
+ }catch(error){return {error:message(error)};}
 }

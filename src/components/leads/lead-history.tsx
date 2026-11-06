@@ -1,4 +1,5 @@
 "use client";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useState } from "react";
 import { fetchLeadHistory, undoWorkflow } from "@/lib/workflows/actions";
 import { useQuery } from "@/lib/workflows/use-query";
@@ -18,7 +19,7 @@ export function LeadHistory({
     [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const q = useQuery(JSON.stringify([leadId, page]), () =>
+  const q = useQuery(JSON.stringify(["lead-history",leadId, page]), () =>
     fetchLeadHistory(leadId, page),
   );
   return (
@@ -29,7 +30,7 @@ export function LeadHistory({
         record the intended outcome.
       </p>
       {q.loading ? (
-        <p className="small muted">Loading history…</p>
+        <ListSkeleton rows={3}/>
       ) : q.error ? (
         <p role="alert" className="small">
           {q.error}

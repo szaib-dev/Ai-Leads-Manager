@@ -1,4 +1,5 @@
 "use client";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useLiveSelection } from "@/lib/realtime/use-live-selection";
 import { useState } from "react";
 import { CheckCheck, Phone, TrendingUp } from "lucide-react";
@@ -26,7 +27,7 @@ export function ActivityPage() {
   const [page, setPage] = useState(1),
     [selected, setSelected] = useLiveSelection<Lead | null>(null),
     [attempt, setAttempt] = useLiveSelection<Lead | null>(null);
-  const q = useQuery(JSON.stringify([filters.filter, page]), () =>
+  const q = useQuery(JSON.stringify(["activity",filters.filter, page]), () =>
     fetchActivityRange(filters.filter, page),
   );
   if (!q.loading && q.data && page > Math.max(1, Math.ceil(q.data.total / 20)))
@@ -84,9 +85,7 @@ export function ActivityPage() {
           <span className="count-pill">Call attempts</span>
         </div>
         {q.loading ? (
-          <p className="small muted" role="status">
-            Loading activity…
-          </p>
+          <ListSkeleton rows={3}/>
         ) : q.error ? (
           <EmptyState
             title="Could not load activity"

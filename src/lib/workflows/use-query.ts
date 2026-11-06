@@ -1,51 +1,39 @@
 "use client";
-import { useEffect, useState } from "react";
+import { workspaceQueryKey } from "@/lib/query/cache";
+import { useQuery as useCachedQuery } from "@tanstack/react-query";
 import type { ActionResult } from "@/lib/leads/contracts";
 import { useWorkspace } from "@/components/providers";
 export function useQuery<T>(
   queryKey: string,
   load: () => Promise<ActionResult<T>>,
 ) {
-  const { revision, privacyEpoch, canFetch } = useWorkspace();
-  const key = JSON.stringify([queryKey, privacyEpoch]);
-  const [version, setVersion] = useState(0);
-  const [state, setState] = useState<{
-    key: string;
-    version: number;
-    data?: T;
-    error?: string;
-  }>({ key: "", version: -1 });
-  // Drop old business payloads instead of retaining a cache across invalidation or disconnection.
-  if (state.key !== key || (!canFetch && state.data !== undefined))
-    setState({ key, version: -1 });
-  useEffect(() => {
-    if (!canFetch) return;
-    let active = true;
-    load()
-      .then((r) => {
-        if (active) setState({ key, version, data: r.data, error: r.error });
-      })
-      .catch(() => {
-        if (active)
-          setState({
-            key,
-            version,
-            error: "Could not load data. Check your connection and retry.",
-          });
-      });
-    return () => {
-      active = false;
-    };
-    // Serialized query keys contain every argument. The workspace revision invalidates only mounted queries.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, version, revision, canFetch]);
+  const { ownerId, revision, privacyEpoch, canFetch } = useWorkspace();
+  const query = useCachedQuery({
+    queryKey: workspaceQueryKey(
+      ownerId,
+      privacyEpoch,
+      "workflow",
+      queryKey,
+      revision,
+    ),
+    enabled: canFetch,
+    queryFn: async ({ signal }) => {
+      const result = await load();
+      signal.throwIfAborted();
+      if (result.error) throw new Error(result.error);
+      if (result.data === undefined)
+        throw new Error("No data returned. Please retry.");
+      return result.data;
+    },
+  });
   return {
-    data: canFetch && state.key === key ? state.data : undefined,
-    error: canFetch && state.key === key ? state.error : undefined,
-    loading:
-      !canFetch ||
-      state.key !== key ||
-      (state.data === undefined && state.error === undefined),
-    retry: () => setVersion((v) => v + 1),
+    data: canFetch ? query.data : undefined,
+    error: canFetch
+      ? query.error?.message
+      : "You are offline. Reconnect to load your workspace.",
+    loading: canFetch && query.isPending,
+    retry: () => {
+      if (canFetch) void query.refetch();
+    },
   };
 }

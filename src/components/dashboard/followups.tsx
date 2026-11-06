@@ -1,4 +1,5 @@
 "use client";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { Select } from "@/components/ui/select";
 import { useLiveSelection } from "@/lib/realtime/use-live-selection";
 import { useState, useSyncExternalStore } from "react";
@@ -59,7 +60,7 @@ export function Followups() {
   const [selectedId, setSelectedId] = useLiveSelection<string | null>(null);
   const [attemptId, setAttemptId] = useLiveSelection<string | null>(null);
   const [rescheduleId, setRescheduleId] = useLiveSelection<string | null>(null);
-  const q = useQuery(JSON.stringify([today, tab, sort, page]), () =>
+  const q = useQuery(JSON.stringify(["followups",today, tab, sort, page]), () =>
     fetchFollowups(today, tab, sort, page),
   );
   if (!q.loading && q.data && page > Math.max(1, Math.ceil(q.data.total / 20)))
@@ -259,9 +260,7 @@ export function Followups() {
               );
             })}
         {q.loading && (
-          <p className="small muted" role="status">
-            Loading follow-ups…
-          </p>
+          <ListSkeleton rows={3}/>
         )}
         {q.error && (
           <EmptyState

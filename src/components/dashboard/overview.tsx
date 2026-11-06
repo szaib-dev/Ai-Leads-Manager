@@ -1,4 +1,5 @@
 "use client";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { DailyDiscipline } from "./daily-discipline";
 import Link from "next/link";
 
@@ -33,7 +34,7 @@ export function Overview() {
   const { pages, timezone } = useWorkspace();
   const filters = useAnalyticsFilters();
   const day = filters.range.to;
-  const q = useQuery(JSON.stringify([filters.filter]), () =>
+  const q = useQuery(JSON.stringify(["overview",filters.filter]), () =>
     fetchAnalytics(filters.filter),
   );
   const data = q.data;
@@ -296,13 +297,7 @@ export function Overview() {
             </Link>
           </div>
           <div className="recent-list">
-            {!activities.length && (
-              <p className="small muted">
-                {q.loading
-                  ? "Loading activity…"
-                  : "Your confirmed actions will appear here."}
-              </p>
-            )}
+            {q.loading ? <ListSkeleton rows={3}/> : !activities.length && <p className="small muted">Your confirmed actions will appear here.</p>}
             {activities.slice(0, 5).map((a) => (
               <Link href="/dash/activity" className="recent-row" key={a.id}>
                 <span className="activity-circle">
