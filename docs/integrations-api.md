@@ -31,3 +31,9 @@ Local PostgreSQL integration tests passed for permissions, anonymous/raw-table d
 Build in this Windows environment uses NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1 to fetch Google Fonts through system trust. No TLS protection is disabled. LOCAL_UI_FIXTURE=1 node --env-file=.env.local tests/integrations-browser-remote.mjs runs the local UI flow. Rebuild normally afterward to restore production Supabase environment values.
 
 Final local verification: 69 unit tests, lint, TypeScript, production build and the PostgreSQL integration suite passed. The local browser transport fixture passed the complete Settings and HTTP flow (secret generation/hiding, master pause, scope toggles, key pause/revoke, idempotent scheduling, queue invalidation, audit and mobile layout). This validates UI/handler integration locally; hosted end-to-end remains unverified because administrative access was denied.
+
+## Hosted follow-up verification
+
+After access was restored, the hosted SQL regression passed. A real HTTP/browser attempt exposed a PL/pgSQL name collision in lead search; migration 202611060024_integration_read_aliases.sql fixes search, lead-details notes and meeting-list aliases without changing the API signature. The expanded SQL regression (including these reads) then passed against hosted Supabase inside a rolled-back fixture transaction. Migration 024 is applied on the same project. No business records were changed.
+
+Hosted end-to-end browser reruns remain pending: administrative key access and even SELECT 1 returned HTTP 403 again after the brief access window. The first failed browser run removed its disposable Auth account. A subsequent SQL-seeded HTTP approach was also blocked before fixture creation; that experimental script was not included in the regression suite. Do not describe hosted HTTP/browser verification as passed yet.

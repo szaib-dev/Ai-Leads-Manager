@@ -12,8 +12,11 @@ do $$declare p uuid;k uuid;r jsonb;lid uuid;mid uuid;stamp text;req uuid=gen_ran
  perform pg_temp.check_api(public.integration_request(token,'leads.create',jsonb_build_object('pageId',p,'lead',jsonb_build_object('business_name','QA','status','new')),req),200);
  if(select count(*) from public.leads where page_id=p)<>1 then raise exception 'Duplicate retry';end if;
  perform pg_temp.check_api(public.integration_request(token,'pages.list','{}',req),409);
+ perform pg_temp.check_api(public.integration_request(token,'leads.search',jsonb_build_object('query','QA','offset',0,'limit',20),gen_random_uuid()),200);
  select id,updated_at::text into lid,stamp from public.leads where page_id=p;
+ perform pg_temp.check_api(public.integration_request(token,'leads.get',jsonb_build_object('id',lid),gen_random_uuid()),200);
  r=public.integration_request(token,'meetings.create',jsonb_build_object('leadId',lid,'expectedUpdatedAt',stamp,'startsAt','2030-07-01T10:00:00-04:00','timezone','America/New_York','notes','QA'),gen_random_uuid());perform pg_temp.check_api(r,200);mid=(r#>>'{body,data,id}')::uuid;
+ perform pg_temp.check_api(public.integration_request(token,'meetings.list','{}',gen_random_uuid()),200);
  if not exists(select 1 from public.followups where id=mid and scheduled_time='19:00') then raise exception 'Wrong Pakistan time';end if;
  if exists(select 1 from public.call_attempts where lead_id=lid) then raise exception 'Fake attempt';end if;
  select updated_at::text into stamp from public.leads where id=lid;
