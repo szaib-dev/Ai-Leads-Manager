@@ -1,46 +1,20 @@
-import {NextResponse} from "next/server";
 import {createClient} from "@/lib/supabase/server";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-const safeId = (value: FormDataEntryValue | null) =>
-  typeof value === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(value) ? value : null;
-const headers = {"Cache-Control": "no-store"};
-
-export async function POST(request: Request) {
-  // Opt in only after RLS and OAuth-specific MCP permission enforcement are reviewed.
-  if (process.env.FOLIO_OAUTH_ENABLED !== "true") {
-    return NextResponse.json({error: "oauth_not_enabled"}, {status: 503, headers});
-  }
-  // Browser form is only accepted from Folio's own origin. OAuth codes are
-  // delivered to the provider-validated redirect URI after a consent decision.
-  const origin = request.headers.get("origin");
-  const expected = process.env.FOLIO_PUBLIC_ORIGIN ?? "https://ai-leads-manager-burak.vercel.app";
-  if (origin !== expected) return NextResponse.json({error: "invalid_origin"}, {status: 403, headers});
-  const len = Number(request.headers.get("content-length") || 0);
-  if (len > 8192) return NextResponse.json({error: "request_too_large"}, {status: 413, headers});
-  const body = await request.formData();
-  const id = safeId(body.get("authorization_id"));
-  const decision = body.get("decision");
-  if (!id || (decision !== "approve" && decision !== "deny")) {
-    return NextResponse.json({error: "invalid_request"}, {status: 400, headers});
-  }
-  const client = await createClient();
-  const {data: userData, error: userError} = await client.auth.getUser();
-  if (userError || !userData.user) return NextResponse.json({error: "authentication_required"}, {status: 401, headers});
-  const {data: details, error: detailsError} = await client.auth.oauth.getAuthorizationDetails(id);
-  if (detailsError || !details || !("authorization_id" in details)) {
-    return NextResponse.json({error: "authorization_expired"}, {status: 400, headers});
-  }
-  const result = decision === "approve"
-    ? await client.auth.oauth.approveAuthorization(id)
-    : await client.auth.oauth.denyAuthorization(id);
-  if (result.error || !result.data) {
-    return NextResponse.json({error: "authorization_failed"}, {status: 400, headers});
-  }
-  const location = new URL(result.data.redirect_url);
-  if (location.protocol !== "https:" && !(location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname))) {
-    return NextResponse.json({error: "unsafe_redirect"}, {status: 400, headers});
-  }
-  return NextResponse.redirect(location, {status: 303, headers});
+import {oauthConfig,oauthEnabled} from "@/lib/integrations/oauth";
+import {scopeSchema} from "@/lib/integrations/contracts";
+import {z} from "zod";
+export async function POST(request:Request){
+  if(!oauthEnabled())return new Response(null,{status:404});
+  if(request.headers.get("Origin")!==new URL(oauthConfig().resource).origin)return new Response(null,{status:403});
+  if(Number(request.headers.get("Content-Length")||0)>8192)return new Response(null,{status:413});
+  const form=await request.formData();const id=z.string().regex(/^[A-Za-z0-9_-]{1,256}$/).safeParse(form.get("authorization_id"));
+  const scopes=z.array(scopeSchema).max(11).safeParse(form.getAll("permissions"));
+  if(!id.success||!scopes.success)return new Response(null,{status:400});
+  const client=await createClient();const {data:{user}}=await client.auth.getUser();if(!user)return new Response(null,{status:401});
+  const {data,error}=await client.auth.oauth.getAuthorizationDetails(id.data);
+  if(error||!data||!("client" in data)||data.user.id!==user.id)return new Response(null,{status:400});
+  const approve=form.get("decision")==="approve";
+  if(approve){const grant=await client.rpc("folio_oauth_grant" as never,{p_client:data.client.id,p_name:data.client.name,p_scopes:scopes.data,p_revoke:false} as never);if(grant.error)return new Response(null,{status:503});}
+  const result=approve?await client.auth.oauth.approveAuthorization(id.data,{skipBrowserRedirect:true}):await client.auth.oauth.denyAuthorization(id.data,{skipBrowserRedirect:true});
+  if(result.error||!result.data)return new Response(null,{status:400});
+  return Response.redirect(result.data.redirect_url,303);
 }

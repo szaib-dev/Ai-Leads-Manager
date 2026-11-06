@@ -1,72 +1,67 @@
 import {randomUUID} from "node:crypto";
-import {POST as folioRequest} from "@/app/api/v1/requests/route";
-import {bearer,requestSchema} from "@/lib/integrations/contracts";
-import {documentedActions} from "@/lib/integrations/documentation";
-
+import {createClient} from "@supabase/supabase-js";
+import {z} from "zod";
+import {bearer, requestSchema} from "@/lib/integrations/contracts";
+import {oauthConfig, oauthEnabled, verifyOAuth} from "@/lib/integrations/oauth";
+import {getSupabaseConfig} from "@/lib/supabase/config";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-
-// Stateless JSON-response MCP Streamable HTTP bridge. No token is stored here.
-// Folio's existing API enforces permission scopes, owner isolation, rate limits,
-// optimistic concurrency, idempotency, and audit logging.
-const headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff",Vary:"Authorization"};
-type RecordValue=Record<string,unknown>;
-const reply=(data:unknown,status=200)=>Response.json(data,{status,headers});
-const success=(id:unknown,result:unknown)=>reply({jsonrpc:"2.0",id,result});
-const failure=(id:unknown,code:number,message:string)=>reply({jsonrpc:"2.0",id:id??null,error:{code,message}});
-const names=new Map(documentedActions.map(entry=>["folio_"+entry.request.action.replaceAll(".","_"),entry]));
-
-export async function POST(request:Request):Promise<Response>{
-  const auth=request.headers.get("Authorization");
-  if(!bearer(auth)) return reply({error:"invalid_api_key"},401);
-  if(!request.headers.get("Content-Type")?.includes("application/json")) return reply({error:"json_required"},415);
-  let packet:RecordValue;
-  try{
-    const raw=await request.text();
-    if(Buffer.byteLength(raw,"utf8")>40000)return reply({error:"payload_too_large"},413);
-    const value:unknown=JSON.parse(raw);
-    if(!value||typeof value!=="object"||Array.isArray(value))return failure(null,-32600,"Invalid JSON-RPC request");
-    packet=value as RecordValue;
-  }catch{return failure(null,-32700,"Parse error");}
-  const id=packet.id??null;
-  if(packet.jsonrpc!=="2.0"||typeof packet.method!=="string")return failure(id,-32600,"Invalid JSON-RPC request");
-  if(packet.method==="notifications/initialized"||packet.method==="notifications/cancelled")return new Response(null,{status:202,headers});
-  if(packet.method==="initialize")return success(id,{
-    protocolVersion:"2025-06-18",
-    capabilities:{tools:{listChanged:false}},
-    serverInfo:{name:"folio-lead-manager",version:"0.1.0"},
-    instructions:"Manage Folio leads, lead pages, meetings and follow-ups. Search and read exact IDs and updated_at before edits. Never infer an ID from a business name. No phone-call attempt logging is supported."
-  });
-  if(packet.method==="ping")return success(id,{});
-  if(packet.method==="tools/list")return success(id,{tools:documentedActions.map(entry=>({
-    name:"folio_"+entry.request.action.replaceAll(".","_"),
-    title:entry.title,
-    description:entry.description+" Permission: "+entry.scope+". Fields: "+entry.fields.join("; ")+". Example: "+JSON.stringify(entry.request.data)+". Result: "+entry.result,
-    inputSchema:{type:"object",properties:{data:{type:"object",description:"Data object for the action, as shown in the example"},...(entry.write?{idempotencyKey:{type:"string",format:"uuid",description:"Optional UUID; reuse only when retrying exactly the same write"}}:{})},required:["data"],additionalProperties:false},
-    annotations:{readOnlyHint:!entry.write,destructiveHint:["leads.delete","leads.archive","meetings.cancel"].includes(entry.request.action),openWorldHint:false}
-  }))});
-  if(packet.method!=="tools/call")return failure(id,-32601,"Method not found");
-  const params=packet.params;
-  if(!params||typeof params!=="object"||Array.isArray(params))return failure(id,-32602,"Invalid tool parameters");
-  const {name,arguments:args} = params as {name?:unknown;arguments?:unknown};
-  const entry=typeof name==="string"?names.get(name):undefined;
-  if(!entry)return failure(id,-32602,"Unknown Folio tool");
-  if(!args||typeof args!=="object"||Array.isArray(args))return failure(id,-32602,"Invalid tool arguments");
-  const {data,idempotencyKey,...unexpected}=args as RecordValue;
-  if(Object.keys(unexpected).length||!data||typeof data!=="object"||Array.isArray(data))return failure(id,-32602,"Expected a data object");
-  if(idempotencyKey!==undefined&&!entry.write)return failure(id,-32602,"Read action cannot have an idempotency key");
-  if(idempotencyKey!==undefined&&(typeof idempotencyKey!=="string"||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(idempotencyKey)))return failure(id,-32602,"Invalid idempotency key");
-  const validated=requestSchema.safeParse({action:entry.request.action,data});
-  if(!validated.success)return success(id,{content:[{type:"text",text:JSON.stringify({error:"invalid_request_fields",issues:validated.error.issues.map(issue=>({path:issue.path.join("."),message:issue.message}))})}],isError:true});
-  const retryKey=entry.write?(idempotencyKey as string|undefined)??randomUUID():null;
-  try{
-    const upstream=await folioRequest(new Request("https://folio.internal/api/v1/requests",{method:"POST",headers:{"Content-Type":"application/json",Authorization:auth!,...(retryKey?{"Idempotency-Key":retryKey}:{})},body:JSON.stringify(validated.data)}));
-    const payload:unknown=await upstream.json();
-    const output={status:upstream.status,body:payload,...(retryKey?{idempotencyKey:retryKey}:{})};
-    return success(id,{content:[{type:"text",text:JSON.stringify(output)}],isError:!upstream.ok});
-  }catch{
-    return success(id,{content:[{type:"text",text:JSON.stringify({error:"folio_unavailable",...(retryKey?{idempotencyKey:retryKey}:{})})}],isError:true});
+const headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
+function challenge(status=401) {
+  const resource=oauthEnabled()?oauthConfig().resource:null;
+  return Response.json({error:status===403?"insufficient_scope":"invalid_token"},{status,headers:{...headers,...(resource?{"WWW-Authenticate":`Bearer resource_metadata="${new URL(resource).origin}/.well-known/oauth-protected-resource/mcp", error="${status===403?"insufficient_scope":"invalid_token"}"`}:{})}});
+}
+export async function POST(request:Request) {
+  if(request.headers.has("Origin") && request.headers.get("Origin")!==new URL(request.url).origin) return new Response(null,{status:403,headers});
+  const token=/^Bearer ([^\s]+)$/i.exec(request.headers.get("Authorization")||"")?.[1];
+  if(!token)return challenge();
+  const apiKey=bearer(request.headers.get("Authorization"));
+  if(!apiKey) {
+    if(!oauthEnabled())return challenge();
+    try{await verifyOAuth(token,oauthConfig());}catch{return challenge();}
   }
+  const config=getSupabaseConfig();if(!config)return new Response(null,{status:503,headers});
+  const client=createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:apiKey?{}:{Authorization:`Bearer ${token}`}}});
+  async function execute(action:string,data:unknown,id:string) {
+    const result=await client.rpc(apiKey?"integration_request":"folio_oauth_request",{...(apiKey?{p_token:apiKey}:{}),p_action:action,p_payload:data,p_request:id});
+    if(result.error)throw new Error("Integration unavailable");
+    return result.data as {status:number;body:unknown};
+  }
+  try {
+    // Authenticate discovery as well as calls. A missing read permission is still an authenticated principal.
+    const auth=await execute("pages.list",{},randomUUID());
+    if(auth.status===401)return challenge();
+    if(auth.status===403 && !JSON.stringify(auth.body).includes("permission_disabled"))return challenge(403);
+    if(auth.status===429)return Response.json(auth.body,{status:429,headers:{...headers,"Retry-After":"60"}});
+    if(!request.headers.get("Content-Type")?.includes("application/json"))return new Response(null,{status:415,headers});
+    const reader=request.body?.getReader();if(!reader)return new Response(null,{status:400,headers});
+    const chunks:Uint8Array[]=[];let size=0;
+    while(true){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>32768){await reader.cancel();return new Response(null,{status:413,headers});}chunks.push(r.value);}
+    let raw:unknown;
+    try {raw=JSON.parse(Buffer.concat(chunks).toString("utf8"));}catch{return Response.json({jsonrpc:"2.0",id:null,error:{code:-32700,message:"Parse error"}},{status:400,headers});}
+    const parsed=z.object({jsonrpc:z.literal("2.0"),id:z.union([z.string(),z.number()]).optional(),method:z.string(),params:z.unknown().optional()}).safeParse(raw);
+    if(!parsed.success)return Response.json({jsonrpc:"2.0",id:null,error:{code:-32600,message:"Invalid request"}},{status:400,headers});
+    const msg=parsed.data;
+    const reply=(result:unknown)=>Response.json({jsonrpc:"2.0",id:msg.id,result},{headers});
+    if(msg.id===undefined)return new Response(null,{status:202,headers});
+    if(msg.method==="initialize")return reply({protocolVersion:"2025-11-25",capabilities:{tools:{listChanged:false}},serverInfo:{name:"Folio",version:"1.0.0"}});
+    if(msg.method==="ping")return reply({});
+    if(msg.method==="tools/list")return reply({tools:requestSchema.options.map(option=>({name:"folio_"+option.shape.action.value.replaceAll(".","_"),description:`Folio ${option.shape.action.value}. Mutations require idempotencyKey; use current updated_at for concurrency.`,inputSchema:{type:"object",properties:{data:z.toJSONSchema(option.shape.data),idempotencyKey:{type:"string",format:"uuid"}},required:["data"],additionalProperties:false}}))});
+    if(msg.method==="tools/call") {
+      const p=z.object({name:z.string(),arguments:z.object({data:z.unknown(),idempotencyKey:z.uuid().optional()}).strict()}).strict().safeParse(msg.params);
+      if(p.success){
+        const action=p.data.name.replace(/^folio_/,"").replaceAll("_",".");const input=requestSchema.safeParse({action,data:p.data.arguments.data});
+        if(input.success){
+          const read=["pages.list","leads.search","leads.get","meetings.list"].includes(action);
+          if(!read&&!p.data.arguments.idempotencyKey)return reply({isError:true,content:[{type:"text",text:"A UUID idempotencyKey is required for mutations."}]});
+          const result=await execute(action,input.data.data,p.data.arguments.idempotencyKey||randomUUID());
+          if(result.status===401)return challenge();if(result.status===403)return challenge(403);
+          return reply({isError:result.status!==200,content:[{type:"text",text:JSON.stringify(result.body)}]});
+        }
+      }
+      return Response.json({jsonrpc:"2.0",id:msg.id,error:{code:-32602,message:"Invalid tool arguments"}},{headers});
+    }
+    return Response.json({jsonrpc:"2.0",id:msg.id,error:{code:-32601,message:"Method not found"}},{headers});
+  }catch{return Response.json({error:"integration_unavailable"},{status:503,headers});}
 }
 export async function GET(){return new Response(null,{status:405,headers:{...headers,Allow:"POST"}});}
-export async function DELETE(){return new Response(null,{status:405,headers:{...headers,Allow:"POST"}});}
