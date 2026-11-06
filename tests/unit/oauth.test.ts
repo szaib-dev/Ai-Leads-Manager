@@ -1,0 +1,30 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {generateKeyPair,SignJWT,createLocalJWKSet,exportJWK} from "jose";
+import {verifyOAuth} from "../../src/lib/integrations/oauth";
+import {safeReturnTo} from "../../src/lib/auth/return-to";
+const config={issuer:"https://project.supabase.co/auth/v1",resource:"https://folio.example/mcp"};
+test("consent login returns only to local validated OAuth paths",()=>{
+  const path="/oauth/consent?authorization_id=c58ced3a-6068-4acd-96ef-b8ff40a117f2";
+  assert.equal(safeReturnTo(path),path);
+  assert.equal(safeReturnTo("https://evil.example"+path),"/dash");
+  assert.equal(safeReturnTo("/oauth/consent?authorization_id=invalid&extra=1"),"/dash");
+});
+test("OAuth signature, audience, purpose and identity validation",async()=>{
+  const {privateKey,publicKey}=await generateKeyPair("ES256");
+  const jwk=await exportJWK(publicKey);jwk.kid="test";
+  const resolver=createLocalJWKSet({keys:[jwk]});
+  const claims={sub:"c58ced3a-6068-4acd-96ef-b8ff40a117f2",client_id:"1478d72c-1ef3-4ea2-b132-451763f745ef",role:"folio_oauth",folio_purpose:"mcp_access"};
+  const sign=(changes:Record<string,unknown>={})=>new SignJWT({...claims,...changes}).setProtectedHeader({alg:"ES256",kid:"test"}).setIssuer(config.issuer).setAudience(config.resource).setIssuedAt().setExpirationTime("5m").sign(privateKey);
+  assert.equal((await verifyOAuth(await sign(),config,resolver)).client_id,claims.client_id);
+  for(const changes of [{client_id:""},{client_id:"not-a-client"},{role:"authenticated"},{folio_purpose:"id_token"}]) await assert.rejects(verifyOAuth(await sign(changes),config,resolver));
+  const valid=await sign();
+  await assert.rejects(verifyOAuth(valid,{...config,issuer:"https://other.example"},resolver));
+  await assert.rejects(verifyOAuth(valid,{...config,resource:"https://other.example/mcp"},resolver));
+  const expired=await new SignJWT(claims).setProtectedHeader({alg:"ES256",kid:"test"}).setIssuer(config.issuer).setAudience(config.resource).setIssuedAt().setExpirationTime(1).sign(privateKey);
+  await assert.rejects(verifyOAuth(expired,config,resolver));
+  const other=await generateKeyPair("ES256");
+  const forged=await new SignJWT(claims).setProtectedHeader({alg:"ES256",kid:"test"}).setIssuer(config.issuer).setAudience(config.resource).setIssuedAt().setExpirationTime("5m").sign(other.privateKey);
+  await assert.rejects(verifyOAuth(forged,config,resolver));
+  for(const token of ["malformed",`${valid.split(".").slice(0,2).join(".")}.`,Buffer.from('{"alg":"none"}').toString("base64url")+"."+valid.split(".")[1]+"."])await assert.rejects(verifyOAuth(token,config,resolver));
+});
