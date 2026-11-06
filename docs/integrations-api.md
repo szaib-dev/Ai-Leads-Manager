@@ -24,7 +24,7 @@ Limit: 60 identified requests/minute/key, 32 KB request body, bounded reads (50 
 
 ## Deployment and checks
 
-Migration 202611060023_integrations.sql was applied to production project lypfxcohmsosedwptebu. No user keys were generated in production. Source is not merged into main or deployed yet. Include the branch's migration when merging so the migration ledger remains consistent.
+Migration 202611060023_integrations.sql was applied to production project lypfxcohmsosedwptebu. Only disposable test-account keys were generated and removed; no key was generated for an existing user account. Source is not merged into main or deployed yet. Include the branch's migration when merging so the migration ledger remains consistent.
 
 Local PostgreSQL integration tests passed for permissions, anonymous/raw-table denial, owner isolation, retries, stale writes, pause/revoke, rate limits, timezone conversion, follow-ups and zero fabricated calls. Unit checks, lint, TypeScript and production build run from this isolated worktree. Hosted transactional testing and disposable-account browser testing initially encountered renewed HTTP 403 for administrative access; the browser fixture is an explicit local transport mock and is not a substitute for live-hosted verification.
 
@@ -37,3 +37,11 @@ Final local verification: 69 unit tests, lint, TypeScript, production build and 
 After access was restored, the hosted SQL regression passed. A real HTTP/browser attempt exposed a PL/pgSQL name collision in lead search; migration 202611060024_integration_read_aliases.sql fixes search, lead-details notes and meeting-list aliases without changing the API signature. The expanded SQL regression (including these reads) then passed against hosted Supabase inside a rolled-back fixture transaction. Migration 024 is applied on the same project. No business records were changed.
 
 Hosted end-to-end browser reruns remain pending: administrative key access and even SELECT 1 returned HTTP 403 again after the brief access window. The first failed browser run removed its disposable Auth account. A subsequent SQL-seeded HTTP approach was also blocked before fixture creation; that experimental script was not included in the regression suite. Do not describe hosted HTTP/browser verification as passed yet.
+
+## Hosted verification completed — 2026-11-06
+
+Access was restored and tests/integrations-browser-remote.mjs completed successfully against project lypfxcohmsosedwptebu and the isolated branch's production build. This supersedes the earlier pending-verification notes above.
+
+Verified one-time secret generation/hiding; missing-auth HTTP rejection; real lead search; meeting scheduling in Pakistan time; idempotent retries producing one meeting; realtime removal from the other open calling queue without refresh; zero fabricated call attempts; master pause/resume; individual permission disable/enable; key pause/resume and permanent revocation; audit entries; OpenAPI output; mobile layout without horizontal document overflow. The disposable Auth owner and all dependent records were removed in the checked cleanup path. No credential was logged or written to reports.
+
+The integration API and UI remain on codex/integrations-api, not merged or pushed. Both database migrations (023 and 024) are applied. Include both files when merging this branch.
