@@ -383,7 +383,7 @@ export function AiAssistant({
             {result.changes &&
               Object.entries(result.changes).map(([key, value]) => (
                 <p className="small" key={key}>
-                  <strong>{key.replaceAll("_", " ")}:</strong> {value}
+                  <strong>{key.replaceAll("_", " ")}:</strong> {key === "phone_cleanup" ? "Remove leading apostrophes" : value}
                 </p>
               ))}
             {result.action === "delete" && result.status === "planned" && (

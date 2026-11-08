@@ -48,7 +48,7 @@ export function Operation({
           {Object.entries(result.changes).map(([key, value]) => (
             <div key={key}>
               <dt>{key.replaceAll("_", " ")}</dt>
-              <dd>{value}</dd>
+              <dd>{key === "phone_cleanup" ? "Remove leading apostrophes" : value}</dd>
             </div>
           ))}
         </dl>

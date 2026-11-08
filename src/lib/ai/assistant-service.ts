@@ -65,7 +65,7 @@ export function message(e: unknown) {
       : "Request failed. Your workspace remains protected.";
 }
 interface Metadata {
-  pages: { id: string; name: string }[];
+  pages: { id: string; name: string; country?: string }[];
   currentPage: string | null;
   selectedCount: number;
   verifiedRecentImport: string | null;
@@ -105,6 +105,13 @@ async function resolvePlan(
     !context.pageId
       ? null
       : resolvePage(intent.page, context, meta);
+  if (
+    intent.changes.phone_cleanup &&
+    !pageId &&
+    intent.selection === "none" &&
+    intent.import === "none"
+  )
+    throw new Error("Choose a lead page, selected leads, or an import for phone cleanup.");
   let importId: string | null = null,
     undoId: string | null = null;
   if (intent.import !== "none" || intent.action === "undo_import") {

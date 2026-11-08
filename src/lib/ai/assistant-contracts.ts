@@ -77,6 +77,7 @@ export const intentSchema = z
       .object({
         business_name: z.string().trim().min(1).max(300).optional(),
         phone: z.string().max(80).optional(),
+        phone_cleanup: z.literal("strip_leading_apostrophes").optional(),
         website_url: z
           .string()
           .max(4096)
@@ -117,6 +118,8 @@ export const intentSchema = z
       Object.keys(p.changes).length
     )
       ctx.addIssue({ code: "custom", message: "Unexpected modifications" });
+    if (p.changes.phone_cleanup && (p.action !== "edit" || Object.keys(p.changes).length !== 1))
+      ctx.addIssue({ code: "custom", message: "Phone cleanup must be the only edit" });
     if (p.action === "edit" && !Object.keys(p.changes).length)
       ctx.addIssue({ code: "custom", message: "No edits specified" });
     if (
@@ -283,11 +286,25 @@ export function validateInstruction(
     text.length <= 120 && !Object.values(cues).some((c) => c.test(text));
   if (
     modifies &&
+    !intent.changes.phone_cleanup &&
     cues[intent.action] &&
     !cues[intent.action].test(text) &&
     !(shortReply && cues[intent.action].test(lastUser))
   )
     return "Please explicitly state the action you want. The proposed modification did not match your instruction.";
+  const affirmation = "yes|yup|yep|yeah|sure|okay|ok|please|go ahead|do it|i said yes";
+  const confirmed = new RegExp(`^(?:${affirmation})(?:[\\s,.!]+(?:${affirmation}))*[,.!]*$`, "i").test(text.trim());
+  const cleanupSource = confirmed ? lastUser : text;
+  const requestsCleanup =
+    /\b(?:remove|strip|delete|clean(?: up)?|fix)\b/i.test(cleanupSource) &&
+    /\b(?:phone|numbers?|dial|calls?)\b/i.test(cleanupSource) &&
+    /(?:\b(?:apostrophes?|single quotes?)\b|(?<![\p{L}])['‘’](?![\p{L}]))/iu.test(cleanupSource);
+  if (modifies && requestsCleanup && !intent.changes.phone_cleanup)
+    return "I can remove leading apostrophes from valid phone numbers. Please specify the lead page or selection.";
+  if (intent.changes.phone_cleanup && (!requestsCleanup || /\b(?:do not|don[’']t|never)\s+(?:remove|strip|delete|clean|fix)\b/i.test(cleanupSource)))
+    return "Please explicitly request removing leading apostrophes from phone numbers.";
+  if (intent.changes.phone_cleanup && /\bselected\b/i.test(cleanupSource) && intent.selection !== "selected")
+    return "The cleanup plan did not preserve your selected leads.";
   const statusSource = (shortReply ? text + " " + lastUser : text).replace(
     /\s+/g,
     " ",
@@ -337,6 +354,7 @@ export function validateInstruction(
     ["edit", "append_notes", "delete", "archive", "restore", "move"].includes(
       intent.action,
     ) &&
+    !intent.changes.phone_cleanup &&
     !conditions.length &&
     intent.selection === "none" &&
     intent.import === "none" &&
@@ -351,7 +369,7 @@ export function validateInstruction(
     .toLowerCase();
   for (const [field, value] of Object.entries(intent.changes)) {
     if (
-      ["status", "scheduled_date", "scheduled_time"].includes(field) ||
+      ["status", "scheduled_date", "scheduled_time", "phone_cleanup"].includes(field) ||
       value === ""
     )
       continue;

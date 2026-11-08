@@ -224,3 +224,16 @@ test("valid-looking model tools cannot turn read requests into writes or switch 
   const remove = intentSchema.parse({ ...plan, action: "delete", changes: {} });
   assert.ok(validateInstruction(remove, "Append notes to all leads"));
 });
+
+test("phone cleanup recognizes the original request and a short confirmation", () => {
+  const changes = { phone_cleanup: "strip_leading_apostrophes" };
+  const plan = intentSchema.parse({ ...base, action: "edit", page: "Salons", changes });
+  const request = "On the Canada Salons page the phone numbers start with ' and I want you to remove that.";
+  assert.equal(validateInstruction(plan, request), undefined);
+  assert.equal(validateInstruction(plan, "Yup", [{ role: "user", content: request }]), undefined);
+  assert.ok(validateInstruction(plan, "What happened?"));
+  assert.ok(validateInstruction(plan, "Don't remove apostrophes from the phone numbers."));
+  assert.ok(validateInstruction(plan, "Remove apostrophes from selected phone numbers."));
+  assert.ok(validateInstruction({ ...plan, action: "delete", changes: {} }, request));
+  assert.equal(intentSchema.safeParse({ ...plan, changes: { ...changes, phone: "+13065550100" } }).success, false);
+});

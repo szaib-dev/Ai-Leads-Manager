@@ -27,6 +27,58 @@ do $$declare p uuid;l uuid;l2 uuid;stamp timestamptz;r jsonb;op uuid;cmd jsonb;b
  perform set_config('test.purge_lead',l::text,true);perform set_config('test.safety_page',p::text,true);
  raise notice 'PASS: explicit soft-deleted restore and undo preserve correct workflow';
 end $$;
+do $$
+declare
+ p uuid:=public.manage_page(null,'Phone cleanup fixture','',false);
+ other uuid:=public.manage_page(null,'Out of scope fixture','',false);
+ l uuid;
+ blocked uuid;
+ stamp timestamptz;
+ original text:=chr(39)||'+1 (306) 555-0100';
+ patch jsonb:='{"phone_cleanup":"strip_leading_apostrophes"}';
+ cmd jsonb;
+ result jsonb;
+ op uuid;
+begin
+ insert into public.leads(page_id,business_name,phone) values
+  (p,'Malformed',original) returning id into l;
+ insert into public.leads(page_id,business_name,phone) values
+  (p,'Already clean','+13065550101'),
+  (p,'Invalid',chr(39)||'abc'),
+  (other,'Another page',original);
+ insert into public.leads(page_id,business_name,phone) values
+  (p,'Rejected',chr(39)||'+13065550102') returning id,updated_at into blocked,stamp;
+ perform public.record_call(blocked,stamp,gen_random_uuid(),'not_interested','');
+
+ begin
+  perform public.ai_stage(gen_random_uuid(),pg_temp.command('edit',null,patch),'fixture-server-proof');
+  raise exception 'Unscoped cleanup accepted';
+ exception when raise_exception then
+  if sqlerrm not like 'Choose a page, selection, or import%' then raise;end if;
+ end;
+
+ perform public.ai_set_mode('strict');
+ cmd=pg_temp.command('edit',p,patch);
+ result=public.ai_stage(gen_random_uuid(),cmd,'fixture-server-proof');
+ op=(result->>'id')::uuid;
+ if result->>'count'<>'1' or result->>'requiresApproval'<>'true' then raise exception 'Incorrect cleanup preview';end if;
+ begin
+  perform public.ai_execute(op,false,'fixture-server-proof');
+  raise exception 'Unapproved cleanup executed';
+ exception when raise_exception then
+  if sqlerrm<>'Explicit approval required' then raise;end if;
+ end;
+ perform public.ai_execute(op,true,'fixture-server-proof');
+ if (select phone from public.leads where id=l) is distinct from '+1 (306) 555-0100'
+  or (select phone from public.leads where id=blocked) is distinct from chr(39)||'+13065550102'
+  or (select phone from public.leads where page_id=other) is distinct from original
+ then raise exception 'Cleanup changed an ineligible number or lost dialable formatting';end if;
+
+ result=public.ai_stage(gen_random_uuid(),pg_temp.command('undo_operation',null)||jsonb_build_object('undoId',op),'fixture-server-proof');
+ perform public.ai_execute((result->>'id')::uuid,true,'fixture-server-proof');
+ if (select phone from public.leads where id=l) is distinct from original then raise exception 'Cleanup undo failed';end if;
+ raise notice 'PASS: scoped phone cleanup, approval, rejected lead exclusion, and undo';
+end $$;
 reset role;
 update private.ai_plans set expires_at=clock_timestamp()-interval '1 minute' where operation_id=current_setting('test.expiring_plan')::uuid;
 select private.ai_expire_plans();
