@@ -34,11 +34,9 @@ const fields = [
 export function ManualLeadDialog({
   pageId,
   onClose,
-  onSaved,
 }: {
   pageId?: string;
   onClose: () => void;
-  onSaved: () => void;
 }) {
   const { pages, toast, refreshPages } = useWorkspace();
   const payload = useRef<ManualLeadInput | null>(null);
@@ -106,7 +104,6 @@ export function ManualLeadDialog({
                 );
                 return;
               }
-              onSaved();
               void refreshPages().catch(() =>
                 toast("Lead saved. Page counts will refresh when connected."),
               );

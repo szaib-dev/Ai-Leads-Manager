@@ -3,6 +3,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CountryFolders } from "@/components/leads/country-folders";
 import Link from "next/link";
+import { TodayCalls } from "./today-calls";
 import { SyncIndicator } from "@/components/shared/sync-indicator";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -175,6 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="topbar-actions">
+              <TodayCalls />
               <SyncIndicator />
               <Button
                 variant="ghost"

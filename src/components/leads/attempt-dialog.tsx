@@ -2,7 +2,6 @@
 import { saveWhatsApp } from "@/lib/leads/whatsapp-actions";
 import { SafeCallLink } from "./safe-call-link";
 import styles from "./calling.module.css";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useRef, useState } from "react";
 import {
   Check,
@@ -24,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { useWorkspace } from "@/components/providers";
 import { publishLead } from "@/lib/realtime/lead-updates";
-import { fetchLeadRecord, recordCall } from "@/lib/workflows/actions";
+import { recordCall } from "@/lib/workflows/actions";
 import {
   callOutcomes,
   outcomeLabels,
@@ -47,7 +46,6 @@ export function AttemptDialog({
     [notes, setNotes] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirmed, setConfirmed] = useState(false),
     [requestId] = useState(() => crypto.randomUUID());
   const submitting = useRef(false);
   const icons = {
@@ -162,8 +160,6 @@ export function AttemptDialog({
                 setError(r.error);
               } else {
                 toast("Call attempt recorded");
-                const fresh = await fetchLeadRecord(lead.id);
-                if (fresh.data) publishLead(fresh.data);
                 void refreshPages().catch(() =>
                   toast("Attempt saved. Counts will retry when connected."),
                 );
@@ -193,7 +189,6 @@ export function AttemptDialog({
                     checked={outcome === s}
                     onChange={() => {
                       setOutcome(s);
-                      setConfirmed(false);
                     }}
                   />
                   <Icon size={19} />
@@ -232,21 +227,6 @@ export function AttemptDialog({
                 lead as Exhausted. Its history will be retained.
               </p>
             )}
-          {outcome === "not_interested" && (
-            <label
-              className="info-box"
-              style={{ display: "flex", gap: 10, alignItems: "center" }}
-            >
-              <Checkbox
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                disabled={busy}
-              />
-              Confirm rejection: archive now, block outreach, and remove
-              business details after 20 days. You can correct this in lead
-              history before deletion.
-            </label>
-          )}
           {blocked && (
             <p className="info-box">
               Do-not-call or archived lead. Correct accidental changes through
@@ -283,11 +263,7 @@ export function AttemptDialog({
             </Button>
             <Button
               type="submit"
-              disabled={
-                busy ||
-                !!blocked ||
-                (outcome === "not_interested" && !confirmed)
-              }
+              disabled={busy || !!blocked}
             >
               <Check size={16} />
               {busy ? "Recording…" : "Confirm attempt"}
