@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
+import type { Lead } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,10 +16,12 @@ import {
 } from "@/lib/leads/selection-actions";
 export function SelectionDelete({
   ids,
+  leads = [],
   onChanged,
 }: {
   ids: string[];
-  onChanged: () => void;
+  leads?: Lead[];
+  onChanged: (deletedIds?: string[]) => void;
 }) {
   const [open, setOpen] = useState(false),
     [rows, setRows] = useState<SelectedLead[]>([]),
@@ -26,7 +29,13 @@ export function SelectionDelete({
     [error, setError] = useState(""),
     [done, setDone] = useState<number>(),
     [undone, setUndone] = useState(false);
-  const request = useRef(crypto.randomUUID());
+  const request = useRef("");
+  const verifyNext = useRef(false);
+  const uncertain = useRef(false);
+  function close() {
+    setOpen(false);
+    if (done === undefined && !uncertain.current) setRows([]);
+  }
   return (
     <>
       <Button
@@ -35,15 +44,23 @@ export function SelectionDelete({
         onClick={async () => {
           setOpen(true);
           if (done !== undefined || rows.length) return;
-          setBusy(true);
           setError("");
+          request.current = crypto.randomUUID();
+          const local = ids.flatMap((id) => {
+            const lead = leads.find((row) => row.id === id);
+            return lead?.updatedAt
+              ? [{ id, name: lead.name, expected: lead.updatedAt }]
+              : [];
+          });
+          if (!verifyNext.current && ids.length <= 200 && local.length === ids.length) {
+            setRows(local);
+            return;
+          }
+          setBusy(true);
           try {
             const r = await previewLeadSelection(ids);
             if (r.error) setError(r.error);
-            else {
-              setRows(r.data!);
-              request.current = crypto.randomUUID();
-            }
+            else setRows(r.data!);
           } catch {
             setError("Could not load the selection. Retry before deleting.");
           } finally {
@@ -58,7 +75,7 @@ export function SelectionDelete({
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!busy) setOpen(value);
+          if (!busy && !value) close();
         }}
       >
         <DialogContent
@@ -83,7 +100,10 @@ export function SelectionDelete({
           </DialogDescription>
           {done === undefined && (
             <>
-              <p>{rows.length} selected records</p>
+              <p aria-live="polite">
+                {ids.length} selected {ids.length === 1 ? "record" : "records"}
+                {busy && !rows.length && " · Checking selection…"}
+              </p>
               <ul
                 style={{ maxHeight: 240, overflowY: "auto", paddingLeft: 20 }}
               >
@@ -102,7 +122,7 @@ export function SelectionDelete({
             <Button
               variant="outline"
               disabled={busy}
-              onClick={() => setOpen(false)}
+              onClick={close}
             >
               Close
             </Button>
@@ -113,12 +133,17 @@ export function SelectionDelete({
                   setBusy(true);
                   try {
                     const r = await deleteLeadSelection(request.current, rows);
-                    if (r.error) setError(r.error);
-                    else {
+                    uncertain.current = false;
+                    if (r.error) {
+                      setError(r.error);
+                      setRows([]);
+                      verifyNext.current = true;
+                    } else {
                       setDone(r.data);
-                      onChanged();
+                      onChanged(rows.map((row) => row.id));
                     }
                   } catch {
+                    uncertain.current = true;
                     setError(
                       "Could not confirm deletion. Close and reopen to retry with the same request.",
                     );
@@ -127,7 +152,7 @@ export function SelectionDelete({
                   }
                 }}
               >
-                Confirm delete {rows.length}
+                Confirm delete {ids.length}
               </Button>
             ) : (
               <Button

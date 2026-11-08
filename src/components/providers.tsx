@@ -24,7 +24,6 @@ interface Workspace {
   recentAiImport: string | undefined;
   setRecentAiImport: (id: string | undefined) => void;
   pages: PageWithCounts[];
-  revision: number;
   privacyEpoch: number;
   canFetch: boolean;
   syncStatus: SyncStatus;
@@ -54,7 +53,6 @@ export function Providers({
 }) {
   const [queryClient] = useState(createWorkspaceQueryClient);
   const [pages, setPages] = useState(initialRealPages),
-    [revision, setRevision] = useState(0),
     [privacyEpoch, setPrivacyEpoch] = useState(0),
     [canFetch, setCanFetch] = useState(true),
     [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting"),
@@ -97,14 +95,16 @@ export function Providers({
       return flight.current;
     }
     const job = (async () => {
+      let refreshedRevision: number | undefined;
       do {
         again.current = false;
-        setRevision((v) => v + 1);
         const r = await fetchWorkspaceState();
         if (!r.data) throw new Error(r.error);
-        if (mounted.current) {
+        if (mounted.current && r.data.revision !== refreshedRevision) {
+          refreshedRevision = r.data.revision;
           setPages(r.data.pages);
-          // Do not acknowledge here: mounted queries may have read an older snapshot.
+          await queryClient.invalidateQueries({ queryKey: [ownerId] });
+          controller.current?.acknowledge(r.data.revision);
         }
       } while (again.current && mounted.current);
     })();
@@ -114,7 +114,7 @@ export function Providers({
     } finally {
       flight.current = null;
     }
-  }, []);
+  }, [ownerId, queryClient]);
   const toast = useCallback((message: string) => setNotice(message), []);
   const setTimezone = useCallback((zone: string) => {
     if (!validTimeZone(zone)) return;
@@ -214,7 +214,6 @@ export function Providers({
         recentAiImport,
         setRecentAiImport,
         pages,
-        revision,
         privacyEpoch,
         canFetch,
         syncStatus,

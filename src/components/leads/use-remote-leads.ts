@@ -31,7 +31,6 @@ export function useRemoteLeads(
   pageId: string | undefined,
   mode: "page" | "archive" | "attempts" | "callbacks",
   enabled: boolean,
-  version: number,
 ) {
   const { canFetch, privacyEpoch, ownerId } = useWorkspace();
   const queryKey = workspaceQueryKey(
@@ -41,7 +40,6 @@ export function useRemoteLeads(
     filters,
     pageId,
     mode,
-    version,
   );
   const client = useQueryClient();
   const query = useCachedQuery({
@@ -71,7 +69,7 @@ export function useRemoteLeads(
   const state = {
     key,
     data: query.data || empty,
-    error: query.error?.message || "",
+    error: query.data ? "" : query.error?.message || "",
   };
 
   return {

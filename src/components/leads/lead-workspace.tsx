@@ -78,7 +78,6 @@ export function LeadWorkspace({
     pages,
     refreshPages,
     toast,
-    revision,
     timezone,
     aiSelection,
     toggleAiLead,
@@ -101,7 +100,6 @@ export function LeadWorkspace({
   const aiIds = aiSelection.pageId === pageId ? aiSelection.ids : [];
   const pageInfo = pages.find((p) => p.id === pageId);
   const [historyOpen, setHistoryOpen] = useState(false),
-    [version, setVersion] = useState(0),
     [saving, setSaving] = useState(false);
   const mobileLayout = useMobileLayout();
   const desktopRemote = useRemoteLeads(
@@ -109,14 +107,12 @@ export function LeadWorkspace({
     pageId,
     mode,
     !mobileLayout,
-    version + revision,
   );
   const mobileRemote = useRemoteLeads(
     mobile,
     pageId,
     mode,
     mobileLayout,
-    version + revision,
   );
   if (
     !mobileLayout &&
@@ -147,7 +143,6 @@ export function LeadWorkspace({
   const summaryReady = !activeRemote.loading && !activeRemote.error;
   const summary = activeRemote.data.summary;
   function refresh() {
-    setVersion((v) => v + 1);
     void refreshPages().catch(() => toast("Page counts could not refresh."));
   }
   function setSelectedId(id: string | null) {
@@ -301,7 +296,14 @@ export function LeadWorkspace({
             <SelectionDelete
               key={[...aiIds].sort().join()}
               ids={aiIds}
-              onChanged={refresh}
+              leads={activeRemote.data.rows}
+              onChanged={(deletedIds) => {
+                for (const lead of activeRemote.data.rows) {
+                  if (deletedIds?.includes(lead.id))
+                    publishLead({ ...lead, deleted: true });
+                }
+                refresh();
+              }}
             />
           </div>
         )}
@@ -822,16 +824,12 @@ export function LeadWorkspace({
           </div>
         </DialogContent>
       </Dialog>
-      {manualOpen&&<ManualLeadDialog pageId={pageId} onClose={()=>setManualOpen(false)} onSaved={()=>{setDesktop({...freshFilters});setMobile({...freshFilters});setVersion(v=>v+1);}}/>}
+      {manualOpen&&<ManualLeadDialog pageId={pageId} onClose={()=>setManualOpen(false)}/>}
       {importOpen && (
         <CsvImportDialog
           pageId={pageId}
           onClose={() => setImportOpen(false)}
-          onImported={() => {
-            setDesktop({ ...freshFilters });
-            setMobile({ ...freshFilters });
-            setVersion(v => v + 1);
-          }}
+          onImported={() => {}}
         />
       )}
       {historyOpen && pageId && (
