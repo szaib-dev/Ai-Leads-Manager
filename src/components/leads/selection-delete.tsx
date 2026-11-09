@@ -25,16 +25,33 @@ export function SelectionDelete({
 }) {
   const [open, setOpen] = useState(false),
     [rows, setRows] = useState<SelectedLead[]>([]),
+    [checked, setChecked] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [done, setDone] = useState<number>(),
     [undone, setUndone] = useState(false);
   const request = useRef("");
-  const verifyNext = useRef(false);
   const uncertain = useRef(false);
+  const needsFreshPreview = useRef(false);
+  async function checkSelection() {
+    setRows([]);
+    setChecked(false);
+    const result = await previewLeadSelection(ids);
+    if (result.error) {
+      setError(result.error);
+      return false;
+    }
+    setRows(result.data!);
+    setChecked(true);
+    request.current = crypto.randomUUID();
+    return true;
+  }
   function close() {
     setOpen(false);
-    if (done === undefined && !uncertain.current) setRows([]);
+    if (done === undefined && !uncertain.current) {
+      setRows([]);
+      setChecked(false);
+    }
   }
   return (
     <>
@@ -45,6 +62,10 @@ export function SelectionDelete({
           setOpen(true);
           if (done !== undefined || rows.length) return;
           setError("");
+          if (ids.length > 200) {
+            setError("Select up to 200 leads per deletion.");
+            return;
+          }
           request.current = crypto.randomUUID();
           const local = ids.flatMap((id) => {
             const lead = leads.find((row) => row.id === id);
@@ -52,15 +73,14 @@ export function SelectionDelete({
               ? [{ id, name: lead.name, expected: lead.updatedAt }]
               : [];
           });
-          if (!verifyNext.current && ids.length <= 200 && local.length === ids.length) {
+          if (!needsFreshPreview.current && local.length === ids.length) {
             setRows(local);
+            setChecked(true);
             return;
           }
           setBusy(true);
           try {
-            const r = await previewLeadSelection(ids);
-            if (r.error) setError(r.error);
-            else setRows(r.data!);
+            await checkSelection();
           } catch {
             setError("Could not load the selection. Retry before deleting.");
           } finally {
@@ -104,6 +124,9 @@ export function SelectionDelete({
                 {ids.length} selected {ids.length === 1 ? "record" : "records"}
                 {busy && !rows.length && " · Checking selection…"}
               </p>
+              {checked && rows.length < ids.length && (
+                <p>{ids.length - rows.length} unavailable and excluded from deletion.</p>
+              )}
               <ul
                 style={{ maxHeight: 240, overflowY: "auto", paddingLeft: 20 }}
               >
@@ -131,13 +154,19 @@ export function SelectionDelete({
                 disabled={busy || !rows.length}
                 onClick={async () => {
                   setBusy(true);
+                  setError("");
                   try {
                     const r = await deleteLeadSelection(request.current, rows);
                     uncertain.current = false;
                     if (r.error) {
-                      setError(r.error);
-                      setRows([]);
-                      verifyNext.current = true;
+                      needsFreshPreview.current = true;
+                      try {
+                        if (await checkSelection()) {
+                          setError(`${r.error} Review the refreshed list before confirming again.`);
+                        }
+                      } catch {
+                        setError(r.error);
+                      }
                     } else {
                       setDone(r.data);
                       onChanged(rows.map((row) => row.id));
@@ -152,7 +181,7 @@ export function SelectionDelete({
                   }
                 }}
               >
-                Confirm delete {ids.length}
+                {rows.length ? `Confirm delete ${rows.length}` : "Confirm delete"}
               </Button>
             ) : (
               <Button

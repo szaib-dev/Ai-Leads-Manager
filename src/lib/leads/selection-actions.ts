@@ -18,25 +18,24 @@ export async function previewLeadSelection(
       .refine((v) => new Set(v).size === v.length)
       .parse(input);
     const { client, user } = await databaseContext();
-    const r = await client
-      .from("leads")
-      .select("id,business_name,updated_at,lead_pages!inner(deleted_at)")
-      .eq("owner_id", user.id)
-      .is("deleted_at", null)
-      .is("lead_pages.deleted_at", null)
-      .in("id", ids);
-    if (r.error) throw new Error(r.error.message);
-    if (r.data.length !== ids.length)
-      throw new Error(
-        "Some selected leads are unavailable. Refresh the selection before deleting.",
-      );
-    return {
-      data: r.data.map((l) => ({
-        id: l.id,
-        name: l.business_name,
-        expected: l.updated_at,
-      })),
-    };
+    // Keep each PostgREST URL short when the selection spans many pages.
+    const rows: SelectedLead[] = [];
+    for (let offset = 0; offset < ids.length; offset += 75) {
+      const r = await client
+        .from("leads")
+        .select("id,business_name,updated_at,lead_pages!inner(deleted_at)")
+        .eq("owner_id", user.id)
+        .is("deleted_at", null)
+        .is("lead_pages.deleted_at", null)
+        .in("id", ids.slice(offset, offset + 75));
+      if (r.error) throw new Error(r.error.message);
+      rows.push(...r.data.map((lead) => ({
+        id: lead.id,
+        name: lead.business_name,
+        expected: lead.updated_at,
+      })));
+    }
+    return { data: rows };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Selection unavailable" };
   }

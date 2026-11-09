@@ -411,6 +411,10 @@ export async function planAssistant(
       p_request: requestId,
       p_command: command,
       p_token: aiServerToken(),
+    }).catch((error: unknown) => {
+      if (intent.changes.phone_cleanup && error instanceof Error && error.message === "Unsupported changes")
+        throw new Error("Phone cleanup requires the latest Supabase migration. Ask a workspace administrator to apply migration 202611090026.");
+      throw error;
     });
     options.signal?.throwIfAborted();
     options.stage?.(
