@@ -49,8 +49,8 @@ try{
  await expect(a.getByRole('dialog').getByRole('button',{name:'Edit',exact:true})).toBeEnabled();
  lead=(await checked(sdk.from('leads').select('*').eq('id',lead.id)))[0];assert.equal(lead.status,'interested');
  mkdirSync('.local-test-output',{recursive:true});await b.screenshot({path:'.local-test-output/search-mobile.png'});
- await a.keyboard.press('Escape');
- const start=performance.now();await checked(sdk.rpc('save_lead',{p_id:lead.id,p_expected:lead.updated_at,p_data:{},p_action:'delete'}));
+ await a.getByRole('dialog').getByRole('button',{name:'Delete lead',exact:true}).click();
+ const start=performance.now();await a.getByRole('button',{name:'Confirm delete',exact:true}).click();
  await expect(listB.getByText('Phone Priority Fixture',{exact:true})).toHaveCount(0,{timeout:15000});
  report.timings.deleteRoundTripMs=Math.round(performance.now()-start);
  report.search={header:true,localInternational:true,fragments:true,phoneFirst:true,name:true,openDetails:true,editStatus:true};

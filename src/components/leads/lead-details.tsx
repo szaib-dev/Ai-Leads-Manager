@@ -17,7 +17,7 @@ import { initials, phoneLink, shortDate } from "@/lib/utils";
 import type { Lead } from "@/types";
 import { formatMoment, dayInZone } from "@/lib/analytics/contracts";
 import { statuses } from "@/types";
-import { fetchLeadRecord } from "@/lib/workflows/actions";
+import { fetchLeadRecord } from "@/lib/leads/browser-mutations";
 import { saveLead } from "@/lib/leads/browser-mutations";
 import { statusToDb } from "@/lib/leads/contracts";
 import { SafeCallLink } from "./safe-call-link";
@@ -36,12 +36,12 @@ export function LeadDetails({
   real?: boolean;
   onSaved?: () => void;
 }) {
-  const { timezone, refreshPages, toast } = useWorkspace();
+  const { timezone, refreshPages, toast, ownerId } = useWorkspace();
   const deleting = useRef(false);
   const [lead, setLead] = useState(initialLead);
   const [editing, setEditing] = useState(false);
   async function reloadSaved(closeEdit = true) {
-    const r = await fetchLeadRecord(lead.id);
+    const r = await fetchLeadRecord(lead.id, ownerId);
     if (!r.data) throw new Error(r.error);
     setLead(r.data);
     publishLead(r.data);
