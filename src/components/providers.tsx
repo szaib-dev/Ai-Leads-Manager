@@ -90,15 +90,17 @@ export function Providers({
     mounted = useRef(false),
     initialCheckpoint = useRef(initialRevision);
   const refreshPages = useCallback<() => Promise<void>>(async () => {
+    // Every revision refreshes visible records immediately, even while counts are busy.
+    const invalidation = queryClient.invalidateQueries({ queryKey: [ownerId] });
     if (flight.current) {
       again.current = true;
-      return flight.current;
+      await Promise.all([flight.current, invalidation]);
+      return;
     }
     const job = (async () => {
       let refreshedRevision: number | undefined;
       do {
         again.current = false;
-        const invalidation = queryClient.invalidateQueries({ queryKey: [ownerId] });
         const r = await fetchWorkspaceState();
         if (!r.data) throw new Error(r.error);
         if (mounted.current && r.data.revision !== refreshedRevision) {

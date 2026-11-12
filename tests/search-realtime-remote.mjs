@@ -17,7 +17,7 @@ try{
  owner=(await checked(admin.auth.admin.createUser({...account,email_confirm:true}))).user.id;
  await checked(sdk.auth.signInWithPassword(account));await checked(ssr.auth.signInWithPassword(account));
  const imported=await checked(sdk.rpc('commit_import',{p_request:randomUUID(),p_page:null,p_new_name:'Search realtime QA',p_mode:'new',p_file:'fictional.csv',p_rows:[{business_name:'Phone Priority Fixture',phone:'+92 317 933 1234'},{business_name:'933 Name Fixture',phone:'555'},{business_name:'US Fragment Fixture',phone:'+1 (202) 933-1000'}],p_total:3,p_invalid:0}));
- browser=await chromium.launch();
+ browser=await chromium.launch(process.env.TEST_BROWSER_CHANNEL ? {channel:process.env.TEST_BROWSER_CHANNEL} : {});
  const contexts=await Promise.all([browser.newContext(),browser.newContext({viewport:{width:390,height:844}})]);
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
  const [a,b]=await Promise.all(contexts.map(c=>c.newPage()));
