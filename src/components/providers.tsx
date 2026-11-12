@@ -107,7 +107,8 @@ export function Providers({
           refreshedRevision = r.data.revision;
           setPages(r.data.pages);
           await invalidation;
-          controller.current?.acknowledge(r.data.revision);
+          // Counts can include a newer revision than the records just fetched.
+          // Only the realtime controller may deduplicate incoming revisions.
         }
       } while (again.current && mounted.current);
     })();
