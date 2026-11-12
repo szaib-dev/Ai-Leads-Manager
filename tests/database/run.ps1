@@ -27,6 +27,8 @@ try {
   }
   & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'global-search.sql')
   if ($LASTEXITCODE -ne 0) { throw 'Global search SQL checks failed' }
+  & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'collection-filters.sql')
+  if ($LASTEXITCODE -ne 0) { throw 'Collection filters SQL checks failed' }
   if (!$ChatToolsOnly) {
   & node (Join-Path $PSScriptRoot 'concurrency.mjs') $PgBin $database
   if ($LASTEXITCODE -ne 0) { throw 'Concurrent duplicate protection failed' }

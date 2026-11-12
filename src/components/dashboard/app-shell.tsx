@@ -49,7 +49,6 @@ const nav = [
   { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: PhoneIncoming },
   { href: "/dash/activity", label: "Activity", icon: History },
   { href: "/dash/archive", label: "Archive", icon: Archive },
-  { href: "/dash/search", label: "Search", icon: Search },
   { href: "/dash/ai", label: "AI workspace", icon: Sparkles },
 ];
 export function AppShell({ children }: { children: ReactNode }) {
@@ -76,6 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
+  useEffect(()=>{const shortcut=(event:KeyboardEvent)=>{const target=event.target as Element;if(event.key==="/" && !event.ctrlKey && !event.metaKey && !target.closest("input,textarea,[contenteditable=true],[role=textbox]")){event.preventDefault();router.push("/dash/search");}};window.addEventListener("keydown",shortcut);return ()=>window.removeEventListener("keydown",shortcut);},[router]);
   const isAi = path === "/dash/ai";
   function openAssistant() {
     const activePage = pages.find((p) => path === `/dash/pages/${p.id}`);
@@ -175,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="topbar-actions">
-              <Button variant="ghost" size="icon" aria-label="Search all businesses" onClick={() => router.push("/dash/search")}><Search size={18} /></Button>
+              <Button variant="ghost" className="header-search-trigger" aria-label="Search all businesses" onClick={() => router.push("/dash/search")}><Search size={16} /><span>Search</span><kbd>/</kbd></Button>
               <TodayCalls />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -56,7 +56,7 @@ export function LeadCard({
       </button>
       <ReimportBadge lead={lead} onReview={onOpen} />
       <div className="lead-card-meta">
-        <StatusBadge status={lead.status} />
+        {progress ? <span className="attempt-number">{lead.failedAttempts===1?"One attempt":lead.failedAttempts===2?"Two attempts":`${lead.failedAttempts} attempts`}</span> : <StatusBadge status={lead.status} />}
         {progress ? (
           <AttemptProgress count={lead.failedAttempts} />
         ) : (

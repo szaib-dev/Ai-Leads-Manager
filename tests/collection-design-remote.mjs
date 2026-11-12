@@ -1,0 +1,40 @@
+import {randomUUID,randomBytes} from 'node:crypto';
+import {mkdirSync} from 'node:fs';
+import {createClient} from '@supabase/supabase-js';
+import {createServerClient} from '@supabase/ssr';
+import {chromium,expect} from '@playwright/test';
+import {testAdminKey} from './fixtures/remote-admin-key.mjs';
+const base=process.env.SEARCH_TEST_BASE||'https://ai-leads-manager-burak.vercel.app';
+const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const opts={auth:{persistSession:false,autoRefreshToken:false}};
+const admin=createClient(url,testAdminKey(),opts),sdk=createClient(url,key,opts),jar=new Map();
+const ssr=createServerClient(url,key,{cookies:{getAll:()=>[...jar].map(([name,value])=>({name,value})),setAll:vs=>vs.forEach(c=>jar.set(c.name,c.value))}});
+let owner,browser;
+async function checked(p){const r=await p;if(r.error)throw new Error(r.error.message);return r.data;}
+try{
+ const account={email:`search-qa-${randomUUID()}@example.invalid`,password:randomBytes(32).toString('base64url')};
+ owner=(await checked(admin.auth.admin.createUser({...account,email_confirm:true}))).user.id;
+ await checked(sdk.auth.signInWithPassword(account));await checked(ssr.auth.signInWithPassword(account));
+ await checked(sdk.rpc('commit_import',{p_request:randomUUID(),p_page:null,p_new_name:'Search realtime QA',p_mode:'new',p_file:'fictional.csv',p_rows:[{business_name:'Phone Priority Fixture',phone:'+92 317 933 1234'},{business_name:'933 Name Fixture',phone:'555'},{business_name:'US Fragment Fixture',phone:'+1 (202) 933-1000'}],p_total:3,p_invalid:0}));
+ mkdirSync('.local-test-output',{recursive:true});
+ browser=await chromium.launch(process.env.TEST_BROWSER_CHANNEL ? {channel:process.env.TEST_BROWSER_CHANNEL} : {});
+ const contexts=await Promise.all([browser.newContext(),browser.newContext({viewport:{width:390,height:844}})]);
+ for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
+ const [a]=await Promise.all(contexts.map(c=>c.newPage()));
+ const rows=await checked(sdk.from('leads').select('*').eq('owner_id',owner));let missed=rows.find(l=>l.business_name==='Phone Priority Fixture');
+ await checked(sdk.rpc('record_call',{p_lead:missed.id,p_expected:missed.updated_at,p_request:randomUUID(),p_outcome:'no_answer',p_notes:''}));
+ const countryIds={};for(const name of ['Germany','UK','Canada','USA','Pakistan'])countryIds[name]=await checked(sdk.rpc('manage_country',{p_id:null,p_name:name,p_delete:false}));
+ await checked(sdk.rpc('move_country_page',{p_page:missed.page_id,p_country:countryIds.Canada}));
+ await a.goto(base+'/dash/pages');await expect(a.getByRole('heading',{name:'Pakistan',exact:true})).toBeVisible({timeout:30000});
+ const names=await a.locator('.country-card h2').allTextContents();if(names.join(',')!=='Pakistan,USA,Canada,UK,Germany')throw new Error('Country order: '+names);
+ await expect(a.getByRole('img',{name:'Pakistan flag'})).toBeVisible();await a.screenshot({path:'.local-test-output/countries-modern.png'});
+ await a.getByRole('button',{name:'Create Country',exact:true}).click();await a.getByRole('combobox',{name:'Choose country'}).click();await expect(a.getByRole('option',{name:'Sri Lanka',exact:true})).toBeVisible();await expect(a.getByRole('option',{name:'Ethiopia',exact:true})).toHaveCount(0);await a.keyboard.press('Escape');await a.keyboard.press('Escape');
+ await a.goto(base+'/dash/countries/'+countryIds.Canada);await expect(a.getByText('total inside',{exact:false})).toBeVisible();await expect(a.getByText('active leads',{exact:true})).toHaveCount(0);await a.screenshot({path:'.local-test-output/collections-modern.png'});
+ await a.goto(base+'/dash/pages/'+missed.page_id);const list=a.getByRole('region',{name:'Desktop lead list'});await expect(list.getByText('Phone Priority Fixture',{exact:true})).toBeVisible();
+ await a.getByRole('combobox',{name:'Status filter',exact:true}).click();await a.getByRole('option',{name:'No Answer',exact:true}).click();await expect(list.getByText('Phone Priority Fixture',{exact:true})).toBeVisible();await expect(list.getByText('US Fragment Fixture',{exact:true})).toHaveCount(0);
+ await a.getByRole('combobox',{name:'Status filter',exact:true}).click();await expect(a.getByRole('option',{name:'Not Interested',exact:true})).toHaveCount(0);await a.getByRole('option',{name:'All statuses',exact:true}).click();await expect(list.getByText('US Fragment Fixture',{exact:true})).toBeVisible();
+ await a.goto(base+'/dash/attempts');await expect(a.getByText('One attempt',{exact:true}).first()).toBeVisible();
+ await a.goto(base+'/dash/whatsapp');await expect(a.getByRole('columnheader',{name:'Conversation status'})).toHaveCount(0);
+ await a.getByRole('button',{name:'Open profile',exact:true}).click();await a.getByRole('dialog').getByRole('button',{name:/Settings/}).click();await expect(a.getByRole('heading',{name:'Make yourself at home.'})).toBeVisible();await a.screenshot({path:'.local-test-output/settings-modern.png'});
+ console.log(JSON.stringify({countriesSorted:true,flags:true,restrictedPicker:true,newLeadPriority:true,allStatuses:true,attemptLabels:true,conversationStatusRemoved:true,settings:true}));
+}finally{if(browser)await browser.close();if(owner)await admin.auth.admin.deleteUser(owner);await sdk.removeAllChannels();await admin.removeAllChannels();}

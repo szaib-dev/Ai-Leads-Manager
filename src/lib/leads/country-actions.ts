@@ -1,4 +1,5 @@
 "use server";
+import { countryInfo } from "./country-catalog";
 import { z } from "zod";
 import { databaseContext } from "@/lib/db/context";
 export interface CountryStructure { countries: { id: string; name: string }[]; assignments: { id: string; country_id: string | null }[] }
@@ -12,7 +13,9 @@ export async function fetchCountries() {
  catch(e) { if(e && typeof e === "object" && "digest" in e && String(e.digest).startsWith("NEXT_REDIRECT")) throw e; return {error:e instanceof Error ? e.message : "Could not load countries"}; }
 }
 export async function manageCountry(id: string | null,name: string,remove=false) {
- return run("manage_country",{p_id:id ? z.uuid().parse(id) : null,p_name:z.string().max(100).parse(name),p_delete:remove});
+ const chosen = remove ? undefined : countryInfo(name);
+ if (!remove && !chosen) throw new Error("Choose a country from the supported list.");
+ return run("manage_country",{p_id:id ? z.uuid().parse(id) : null,p_name:remove ? "" : chosen!.name,p_delete:remove});
 }
 export async function moveCountryPage(page: string,country: string | null) {
  return run("move_country_page",{p_page:z.uuid().parse(page),p_country:country ? z.uuid().parse(country) : null});

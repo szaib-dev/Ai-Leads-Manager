@@ -8,7 +8,7 @@ do $$declare v_page uuid;v_lead uuid;v_second uuid;v_third uuid;v_change uuid;v_
  insert into public.leads(page_id,business_name,phone) values(v_page,'Workflow business','+12025550191') returning id,updated_at into v_lead,v_stamp;
  v_change=public.record_call(v_lead,v_stamp,v_req,'no_answer','First attempt');
  if public.record_call(v_lead,v_stamp,v_req,'no_answer','First attempt')<>v_change then raise exception 'Retry not idempotent';end if;
- if (select total_attempts from public.lead_attempt_summary where lead_id=v_lead)<>1 or (public.workspace_leads(v_page)->>'total')::int<>0 or (public.workspace_leads(null,'attempts')->>'total')::int<>v_attempts+1 then raise exception 'First failed call routing wrong';end if;
+ if (select total_attempts from public.lead_attempt_summary where lead_id=v_lead)<>1 or (public.workspace_leads(v_page)->>'total')::int<>1 or (public.workspace_leads(null,'attempts')->>'total')::int<>v_attempts+1 then raise exception 'First failed call routing wrong';end if;
  raise notice 'PASS: Confirmed server-timestamped attempt is idempotent and routes exclusively to Attempts';
  select updated_at into v_stamp from public.leads where id=v_lead;
  v_prior=public.record_call(v_lead,v_stamp,gen_random_uuid(),'voicemail','Second');
@@ -31,7 +31,7 @@ do $$declare v_page uuid;v_lead uuid;v_second uuid;v_third uuid;v_change uuid;v_
  select updated_at into v_stamp from public.leads where id=v_lead;
  v_change=public.record_call(v_lead,v_stamp,gen_random_uuid(),'callback_requested','Discuss pricing',v_day+1,'14:30');
  select id into v_f from public.followups where lead_id=v_lead and completed_at is null and cancelled_at is null;
- if v_f is null or (public.workspace_leads(v_page)->>'total')::int<>0 or (public.workspace_followups(v_day)->>'total')::int<>v_followups+1 then raise exception 'Callback routing failed';end if;
+ if v_f is null or (public.workspace_leads(v_page)->>'total')::int<>1 or (public.workspace_followups(v_day)->>'total')::int<>v_followups+1 then raise exception 'Callback routing failed';end if;
  if not exists(select 1 from public.followups where id=v_f and scheduled_time='14:30') then raise exception 'Literal schedule shifted';end if;
  select updated_at into v_stamp from public.leads where id=v_lead;
  v_prior=public.manage_followup(v_lead,v_stamp,gen_random_uuid(),v_f,'schedule',v_day+2,'09:15','Updated note');

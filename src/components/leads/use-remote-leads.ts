@@ -85,7 +85,7 @@ export function useRemoteLeads(
                 !row.deleted &&
                 (mode === "search" || (mode === "archive" ? row.archived : !row.archived)) &&
                 (mode !== "page" ||
-                  ["New", "Interested"].includes(row.status)) &&
+                  row.status !== "Not Interested") &&
                 (mode !== "attempts" ||
                   ["No Answer", "Voicemail"].includes(row.status)) &&
                 (mode !== "callbacks" || row.status === "Awaiting Callback"),

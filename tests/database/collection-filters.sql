@@ -1,0 +1,20 @@
+begin;
+insert into auth.users(id) values('99000000-0000-4000-8000-000000000031');
+select set_config('request.jwt.claim.sub','99000000-0000-4000-8000-000000000031',true);
+do $$declare p uuid;r jsonb;l uuid;stamp timestamptz;begin
+ p=public.manage_page(null,'Filter QA','',false);
+ insert into public.leads(page_id,business_name,phone,status) values(p,'New fixture','123','new'),(p,'Answered fixture','456','interested'),(p,'Missed fixture','789','no_answer'),(p,'WA fixture','101','whatsapp'),(p,'Rejected fixture','202','not_interested');
+ execute 'set local role authenticated';
+ r=public.workspace_leads(p,'page');
+ if (r->>'total')::int<>4 then raise exception 'All statuses must include every nonrejected collection lead';end if;
+ if (public.workspace_leads(p,'page','','no_answer')->>'total')::int<>1 then raise exception 'No Answer filter failed';end if;
+ if (public.workspace_leads(p,'page','','whatsapp')->>'total')::int<>1 then raise exception 'WhatsApp filter failed';end if;
+ if (public.workspace_leads(p,'page','','not_interested')->>'total')::int<>0 then raise exception 'Rejected lead leaked';end if;
+ perform public.manage_country(null,'Pakistan');
+ begin perform public.manage_country(null,'Invented country');raise exception 'Arbitrary country allowed';exception when raise_exception then if sqlerrm='Arbitrary country allowed' then raise;end if;end;
+ select id,updated_at into l,stamp from public.leads where page_id=p and business_name='New fixture';
+ perform public.record_call(l,stamp,gen_random_uuid(),'no_answer','');
+ if (public.workspace_leads(null,'attempts','','attempt_1')->>'total')::int<>1 then raise exception 'Attempt count filtering failed';end if;
+ raise notice 'PASS: collection statuses, rejection exclusion, attempt counts and supported-country validation';
+end $$;
+rollback;

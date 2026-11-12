@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SlidersHorizontal, Plug, ArrowUpRight, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -27,27 +28,27 @@ export function ApplicationSettings({
     [error, setError] = useState("");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle>Settings</DialogTitle>
+      <DialogContent className="settings-panel">
+        <span className="settings-emblem"><SlidersHorizontal size={24}/></span><p className="settings-eyebrow">YOUR WORKSPACE, YOUR WAY</p><DialogTitle>Make yourself at home.</DialogTitle>
         <DialogDescription>
-          Import preferences are private to your authenticated account.
+          A few thoughtful preferences for a smoother working day.
         </DialogDescription>
-        <section className="settings-integration-link"><h3>Integrations & API</h3><p className="small muted">Generate secrets, manage permissions and review requests.</p><Button asChild variant="outline"><Link href="/dash/settings/integrations" onClick={()=>onOpenChange(false)}>Manage integrations</Link></Button></section>
-        <h3 style={{ fontSize: 14, marginBottom: 12 }}>AI CSV Import</h3>
+        <Link className="settings-api-card" href="/dash/settings/integrations" onClick={()=>onOpenChange(false)}><span><Plug size={21}/></span><div><strong>Integrations & API</strong><small>Connect your tools and manage access</small></div><ArrowUpRight size={18}/></Link>
+        <h3 style={{ fontSize: 14, marginBottom: 12 }}>HOW YOU IMPORT</h3>
         <fieldset className="import-mode-options" disabled={busy || !q.data}>
           {(
             [
               {
                 mode: "manual",
-                title: "Manual mode",
+                title: "Review it myself",
                 description:
                   "Map columns and review a preview before importing.",
               },
               {
                 mode: "automatic",
-                title: "Automatic AI mode",
+                title: "Let AI handle it",
                 description:
-                  "DeepSeek analyzes a small sample and imports confidently mapped valid records. Uncertain mappings, rejected statuses, schedules and replacements require review.",
+                  "Auto-map and import confident matches. Anything uncertain comes back to you for review.",
               },
             ] as const
           ).map((item) => (
@@ -65,10 +66,10 @@ export function ApplicationSettings({
             </label>
           ))}
         </fieldset>
-        <p className="small muted" style={{ margin: "16px 0" }}>
+        <p className="settings-privacy"><ShieldCheck size={17}/><span>
           AI uses the existing spending limit. Headers and up to three truncated
           sample rows are shared with DeepSeek. Missing keys, service errors or
-          budget limits fall back to manual mapping.
+          budget limits fall back to manual mapping.</span>
         </p>
         {(error || q.error) && (
           <p role="alert" className="small">
@@ -97,7 +98,7 @@ export function ApplicationSettings({
               }
             }}
           >
-            {busy ? "Saving..." : "Save preference"}
+            {busy ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </DialogContent>

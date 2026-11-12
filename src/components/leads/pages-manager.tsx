@@ -65,7 +65,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
       <div className="section-heading">
         <div>
           <h2>Lead pages</h2>
-          <span className="count-pill">{pages.length}</span>
+          <span className="count-pill">{scoped.length}</span>
         </div>
         <label className="search-field page-search">
           <Search size={16} />
@@ -82,7 +82,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
         {filtered.map((p) => {
           const contacted = p.contactedCount;
           return (
-            <div key={p.id} className="page-card">
+            <div key={p.id} className="page-card collection-card">
               <Link href={`/dash/pages/${p.id}`} style={{ display: "block" }}>
                 <div className="page-card-top">
                   <span className={`country-icon ${p.color}`}>{p.flag}</span>
@@ -92,10 +92,10 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
                 <p>{p.description}</p>
                 <div className="page-card-stats">
                   <strong>
-                    {p.leadCount}
-                    <span>active leads</span>
+                    {p.newCount}
+                    <span>new leads</span>
                   </strong>
-                  <span>{p.newCount} new</span>
+                  <span className="collection-total">{p.leadCount} total inside <ArrowUpRight size={13}/></span>
                 </div>
                 <div className="page-progress">
                   <span

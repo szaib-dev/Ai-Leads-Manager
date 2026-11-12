@@ -206,7 +206,7 @@ export function LeadWorkspace({
             onValueChange={(value) => change({ status: value })}
           >
             <option value="all">All statuses</option>
-            {statuses.map((s) => (
+            {mode === "attempts" ? [1,2].map(n=><option key={n} value={`attempt_${n}`}>{n===1?"One attempt":"Two attempts"}</option>) : statuses.filter(s=>mode!=="page" || s!=="Not Interested").map((s) => (
               <option key={s}>{s}</option>
             ))}
           </Select>
@@ -482,7 +482,7 @@ export function LeadWorkspace({
                       )}
                     </td>
                     <td>
-                      <StatusBadge status={l.status} />
+                      {mode === "attempts" ? <span className="attempt-number">{l.failedAttempts === 1 ? "One attempt" : l.failedAttempts === 2 ? "Two attempts" : `${l.failedAttempts} attempts`}</span> : <StatusBadge status={l.status} />}
                       <ReimportBadge
                         lead={l}
                         onReview={() => setSelectedId(l.id)}
@@ -661,7 +661,7 @@ export function LeadWorkspace({
         }
         description={
           mode === "search" ? "Search by phone number or business name across every collection and status. Phone matches appear first." : mode === "page"
-            ? "New and interested leads. Unanswered leads move to Attempts; scheduled conversations move to Follow-ups."
+            ? "Every lead in this collection, across all statuses. Not Interested leads stay out of your calling list."
             : mode === "attempts"
               ? "Pick up where you left off. No-answer and voicemail leads, all in one place."
               : mode === "callbacks"
@@ -745,7 +745,7 @@ export function LeadWorkspace({
           <div>
             <h2>
               {mode === "page"
-                ? "Active calling queue"
+                ? "Your collection"
                 : mode === "attempts"
                   ? "Your next attempts"
                   : mode === "callbacks"

@@ -16,7 +16,6 @@ import { fetchLeadRecord } from "@/lib/workflows/actions";
 import { useWorkspace } from "@/components/providers";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -37,12 +36,6 @@ import type { Lead } from "@/types";
 type Entry = NonNullable<
   Awaited<ReturnType<typeof fetchWhatsApp>>["data"]
 >["rows"][number];
-const statuses = [
-  "Waiting for Reply",
-  "In Conversation",
-  "Interested",
-  "Closed",
-];
 function ConversationRow({
   entry,
   onOpen,
@@ -139,26 +132,6 @@ function ConversationRow({
       </td>
       <td data-label="Phone" className="nowrap muted">
         {entry.lead.phone || "No phone listed"}
-      </td>
-      <td data-label="Status">
-        <Select
-          aria-label={`Conversation status for ${entry.lead.name}`}
-          value={status}
-          disabled={pending}
-          onValueChange={(value) => void save(value)}
-        >
-          {statuses.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </Select>
-        <span className="small muted" role="status">
-          {pending ? " Saving..." : ""}
-        </span>
-        {error && (
-          <p className="small" role="alert">
-            {error}
-          </p>
-        )}
       </td>
       <td data-label="Last interaction" className="muted nowrap">
         {saved.date ? shortDate(saved.date) : "—"}
@@ -311,7 +284,7 @@ export default function WhatsAppPage() {
     <>
       <PageHeader
         title="WhatsApp Conversations"
-        description="Track your conversations and change their status directly in the table."
+        description="Your WhatsApp contacts, notes, and next conversations."
       />
       <section className="lead-list-panel conversations-panel">
         <div className="panel-title">
@@ -319,7 +292,7 @@ export default function WhatsAppPage() {
             <h2>Your conversations</h2>
             <span className="count-pill">{query.data?.total ?? "—"}</span>
           </div>
-          <span className="small muted">Status changes save automatically</span>
+          <span className="small muted">Open a contact to continue the conversation</span>
         </div>
         {query.loading && <ListSkeleton />}
         {query.error && (
@@ -334,7 +307,6 @@ export default function WhatsAppPage() {
               <tr>
                 <th>Business name</th>
                 <th>Phone number</th>
-                <th>Conversation status</th>
                 <th>Last interaction</th>
                 <th>Notes</th>
                 <th>
@@ -361,7 +333,7 @@ export default function WhatsAppPage() {
               ))}
               {query.data?.total === 0 && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={5}>
                     No WhatsApp conversations yet. Choose Continue on WhatsApp
                     from a call outcome.
                   </td>
