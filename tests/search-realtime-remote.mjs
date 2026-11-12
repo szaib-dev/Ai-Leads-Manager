@@ -22,15 +22,15 @@ try{
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
  const [a,b]=await Promise.all(contexts.map(c=>c.newPage()));
  await a.goto(base+'/dash');await a.getByRole('button',{name:'Search all businesses',exact:true}).click();
- await expect(a.getByRole('heading',{name:'Search all businesses',exact:true})).toBeVisible({timeout:30000});
+ await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible({timeout:30000});
  await b.goto(base+'/dash/search');
- const inputA=a.getByRole('textbox',{name:'Search leads',exact:true}),inputB=b.getByRole('textbox',{name:'Search mobile leads',exact:true});
+ const inputA=a.getByRole('textbox',{name:'Search all businesses',exact:true}),inputB=b.getByRole('textbox',{name:'Search all businesses',exact:true});
  await inputA.fill('0317933');await inputB.fill('0317933');
- const listA=a.getByRole('region',{name:'Desktop lead list'}),listB=b.getByRole('region',{name:'Mobile lead list'});
+ const listA=a.getByRole('region',{name:'Search results'}),listB=b.getByRole('region',{name:'Search results'});
  await expect(listA.getByText('Phone Priority Fixture',{exact:true})).toBeVisible({timeout:30000});
  await expect(listB.getByText('Phone Priority Fixture',{exact:true})).toBeVisible({timeout:30000});
  await inputA.fill('933');await expect(listA.getByText('933 Name Fixture',{exact:true})).toBeVisible();
- const names=await listA.locator('button.business-cell strong').allTextContents();assert.equal(names.length,3);assert.equal(names.at(-1),'933 Name Fixture');
+ const names=await listA.locator('button[class*=result] strong').allTextContents();assert.equal(names.length,3);assert.equal(names.at(-1),'933 Name Fixture');
  await inputA.fill('Phone Priority');await expect(listA.getByText('Phone Priority Fixture',{exact:true})).toBeVisible();
  let lead=(await checked(sdk.from('leads').select('*').eq('owner_id',owner).eq('business_name','Phone Priority Fixture')))[0];
  // Time a committed database update to the independent mobile browser render.
