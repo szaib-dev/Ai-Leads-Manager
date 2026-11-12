@@ -7,7 +7,8 @@ import {
 } from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers";
 import { replaceLead, subscribeLeadChanges } from "@/lib/realtime/lead-updates";
-import { fetchLeads } from "@/lib/leads/actions";
+import { createClient } from "@/lib/supabase/browser";
+import { fromDb, statusToDb } from "@/lib/leads/contracts";
 import type { LeadFilters, LeadResult } from "@/lib/leads/contracts";
 const empty: LeadResult = {
   rows: [],
@@ -29,7 +30,7 @@ export function useMobileLayout() {
 export function useRemoteLeads(
   filters: LeadFilters,
   pageId: string | undefined,
-  mode: "page" | "archive" | "attempts" | "callbacks",
+  mode: "page" | "archive" | "attempts" | "callbacks" | "search",
   enabled: boolean,
 ) {
   const { canFetch, privacyEpoch, ownerId } = useWorkspace();
@@ -46,13 +47,15 @@ export function useRemoteLeads(
     queryKey,
     enabled: enabled && canFetch,
     queryFn: async ({ signal }) => {
-      if (filters.search)
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      signal.throwIfAborted();
-      const result = await fetchLeads({ ...filters, pageId, mode });
-      signal.throwIfAborted();
-      if (result.error) throw new Error(result.error);
-      return result.data!;
+      const { data, error } = await createClient().rpc("workspace_leads", {
+        p_page: pageId, p_mode: mode, p_search: filters.search.trim(),
+        p_status: statusToDb[filters.status] || filters.status,
+        p_phone: filters.phoneOnly, p_sort: filters.sort,
+        p_offset: (filters.page - 1) * 15, p_limit: 15,
+      }).abortSignal(signal);
+      if (error) throw new Error(error.message);
+      const result = data as unknown as Omit<LeadResult, "rows"> & { rows: Record<string, unknown>[] };
+      return { ...result, rows: result.rows.map(fromDb) };
     },
   });
   const key = JSON.stringify(queryKey);
@@ -80,7 +83,7 @@ export function useRemoteLeads(
             rows: state.data.rows.filter(
               (row) =>
                 !row.deleted &&
-                (mode === "archive" ? row.archived : !row.archived) &&
+                (mode === "search" || (mode === "archive" ? row.archived : !row.archived)) &&
                 (mode !== "page" ||
                   ["New", "Interested"].includes(row.status)) &&
                 (mode !== "attempts" ||

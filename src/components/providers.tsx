@@ -98,12 +98,13 @@ export function Providers({
       let refreshedRevision: number | undefined;
       do {
         again.current = false;
+        const invalidation = queryClient.invalidateQueries({ queryKey: [ownerId] });
         const r = await fetchWorkspaceState();
         if (!r.data) throw new Error(r.error);
         if (mounted.current && r.data.revision !== refreshedRevision) {
           refreshedRevision = r.data.revision;
           setPages(r.data.pages);
-          await queryClient.invalidateQueries({ queryKey: [ownerId] });
+          await invalidation;
           controller.current?.acknowledge(r.data.revision);
         }
       } while (again.current && mounted.current);

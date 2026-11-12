@@ -12,7 +12,7 @@ export function startWorkspaceSync(
   transport: SyncTransport,
   onChange: () => unknown,
   onStatus: (s: SyncStatus) => void,
-  { batchMs = 200, pollMs = 15000 } = {},
+  { batchMs = 25, pollMs = 15000 } = {},
 ) {
   let transportStatus: SyncStatus = "connecting";
   let stopped = false,

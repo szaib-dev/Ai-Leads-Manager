@@ -9,6 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useState, type ReactNode } from "react";
 import {
+  Search,
   Archive,
   CalendarClock,
   ChartNoAxesCombined,
@@ -46,6 +47,7 @@ const nav = [
   { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: CalendarClock },
   { href: "/dash/activity", label: "Activity", icon: History },
   { href: "/dash/archive", label: "Archive", icon: Archive },
+  { href: "/dash/search", label: "Search", icon: Search },
   { href: "/dash/ai", label: "AI workspace", icon: Sparkles },
 ];
 export function AppShell({ children }: { children: ReactNode }) {
@@ -176,6 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="topbar-actions">
+              <Button variant="ghost" size="icon" aria-label="Search all businesses" onClick={() => router.push("/dash/search")}><Search size={18} /></Button>
               <TodayCalls />
               <SyncIndicator />
               <Button

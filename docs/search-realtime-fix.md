@@ -1,0 +1,9 @@
+# Global search and realtime refresh — 2026-11-12
+
+The remote refresh previously awaited workspace_state (via a Next.js Server Action) before invalidating active view queries. Lead reads were themselves Server Actions, adding a second server/network trip and potential action queue contention. Refresh now invalidates immediately, alongside counts; lead lists use the existing authenticated, RLS-protected Supabase workspace_leads RPC directly, with request cancellation. The revision batching window drops from 200ms to 25ms. No row payloads or ownership protections change.
+
+Header Search opens /dash/search, reusing lead details, status edits, calling and deletion. Migration 202611120030 adds a global mode spanning all nondeleted collections/statuses including archives, digit normalization, Pakistan local/international prefix matching and phone-first ordering. Results remain paginated, with owner isolation enforced in SQL.
+
+Validation: 73 unit tests, lint and TypeScript pass. New SQL regression covers fragments, normalization, names, ranking, archives, deletion and cross-owner isolation. Full SQL regression and concurrency checks pass, including OAuth privilege isolation.
+
+Deployment: Supabase access was restored. The search migration was applied directly and version 202611120030 was recorded as applied, without deploying unrelated pending migrations. Production app publishing uses the existing GitHub-to-Vercel connection on main. The release is based on current origin/main, preserving its OAuth changes. Explicit TypeScript extensions in next.config.ts fix native Node config loading; webpack supports local verification with the shared node_modules junction. Live test script: tests/search-realtime-remote.mjs (disposable account, desktop and mobile browser contexts, results written under ignored .local-test-output).

@@ -1,0 +1,23 @@
+begin;
+insert into auth.users(id) values('99000000-0000-4000-8000-000000000030'),('98000000-0000-4000-8000-000000000030');
+select set_config('request.jwt.claim.sub','99000000-0000-4000-8000-000000000030',true);
+set local role authenticated;
+do $$declare p uuid; r jsonb; l uuid; stamp timestamptz;begin
+ p=public.manage_page(null,'Search fixtures','',false);
+ insert into public.leads(page_id,business_name,phone) values(p,'Phone first','+92 317 933 1234'),(p,'933 name match','555'),(p,'Fragment','+1 (202) 933-1000');
+ r=public.workspace_leads(null,'search','933');
+ if (r->>'total')::int<>3 or r->'rows'->0->>'business_name'='933 name match' then raise exception 'Fragment search/ranking failed';end if;
+ if (public.workspace_leads(null,'search','0317933')->>'total')::int<>1 then raise exception 'Local prefix failed';end if;
+ if (public.workspace_leads(null,'search','+92 317 933')->>'total')::int<>1 then raise exception 'International formatting failed';end if;
+ if (public.workspace_leads(null,'search','name match')->>'total')::int<>1 then raise exception 'Name search failed';end if;
+ select id,updated_at into l,stamp from public.leads where business_name='Phone first' and page_id=p;
+ perform public.save_lead(l,stamp,'{}','archive');
+ if (public.workspace_leads(null,'search','0317933')->>'total')::int<>1 then raise exception 'Archive excluded';end if;
+ select updated_at into stamp from public.leads where id=l;
+ perform public.save_lead(l,stamp,'{}','delete');
+ if (public.workspace_leads(null,'search','0317933')->>'total')::int<>0 then raise exception 'Deleted included';end if;
+ perform set_config('request.jwt.claim.sub','98000000-0000-4000-8000-000000000030',true);
+ if (public.workspace_leads(null,'search','933')->>'total')::int<>0 then raise exception 'Cross-owner leak';end if;
+ raise notice 'PASS: global phone fragments, local/international formatting, names, ranking, archives, deletion, ownership';
+end $$;
+rollback;

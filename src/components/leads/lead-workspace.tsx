@@ -71,7 +71,7 @@ export function LeadWorkspace({
   mode = "page",
 }: {
   pageId?: string;
-  mode?: "page" | "attempts" | "archive" | "callbacks";
+  mode?: "page" | "attempts" | "archive" | "callbacks" | "search";
 }) {
   const {
     ownerId,
@@ -455,7 +455,7 @@ export function LeadWorkspace({
                                 ? "Do not call Â· previously rejected"
                                 : l.archiveReason === "attempts_exhausted"
                                   ? "Exhausted"
-                                  : l.category}
+                                  : mode === "search" ? `${pages.find(p => p.id === l.pageId)?.name || "Collection"} · ${l.archived ? "Archived" : l.category}` : l.category}
                             </small>
                             {mode === "attempts" && l.lastAttemptNotes && (
                               <small
@@ -651,7 +651,7 @@ export function LeadWorkspace({
       </div>
       <PageHeader
         title={
-          mode === "page"
+          mode === "search" ? "Search all businesses" : mode === "page"
             ? pageInfo!.name
             : mode === "attempts"
               ? "Every call deserves another chance."
@@ -660,7 +660,7 @@ export function LeadWorkspace({
                 : "Archive"
         }
         description={
-          mode === "page"
+          mode === "search" ? "Search by phone number or business name across every collection and status. Phone matches appear first." : mode === "page"
             ? "New and interested leads. Unanswered leads move to Attempts; scheduled conversations move to Follow-ups."
             : mode === "attempts"
               ? "Pick up where you left off. No-answer and voicemail leads, all in one place."
