@@ -16,7 +16,7 @@ try{
  const account={email:`search-qa-${randomUUID()}@example.invalid`,password:randomBytes(32).toString('base64url')};
  owner=(await checked(admin.auth.admin.createUser({...account,email_confirm:true}))).user.id;
  await checked(sdk.auth.signInWithPassword(account));await checked(ssr.auth.signInWithPassword(account));
- const imported=await checked(sdk.rpc('commit_import',{p_request:randomUUID(),p_page:null,p_new_name:'Search realtime QA',p_mode:'new',p_file:'fictional.csv',p_rows:[{business_name:'Phone Priority Fixture',phone:'+92 317 933 1234'},{business_name:'933 Name Fixture',phone:'555'},{business_name:'US Fragment Fixture',phone:'+1 (202) 933-1000'}],p_total:3,p_invalid:0}));
+ await checked(sdk.rpc('commit_import',{p_request:randomUUID(),p_page:null,p_new_name:'Search realtime QA',p_mode:'new',p_file:'fictional.csv',p_rows:[{business_name:'Phone Priority Fixture',phone:'+92 317 933 1234'},{business_name:'933 Name Fixture',phone:'555'},{business_name:'US Fragment Fixture',phone:'+1 (202) 933-1000'}],p_total:3,p_invalid:0}));
  browser=await chromium.launch(process.env.TEST_BROWSER_CHANNEL ? {channel:process.env.TEST_BROWSER_CHANNEL} : {});
  const contexts=await Promise.all([browser.newContext(),browser.newContext({viewport:{width:390,height:844}})]);
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
@@ -41,10 +41,18 @@ try{
   lead=(await checked(sdk.from('leads').select('*').eq('id',lead.id)))[0];
  }
  await listA.getByText('Phone Priority Fixture',{exact:true}).click();await expect(a.getByRole('dialog')).toBeVisible();
+ await a.getByRole('dialog').getByRole('button',{name:'Edit',exact:true}).click();
+ await a.getByRole('dialog').getByRole('combobox').click();await a.getByRole('option',{name:'Interested',exact:true}).click();
+ let uiStart=performance.now();await a.getByRole('dialog').getByRole('button',{name:'Save lead',exact:true}).click();
+ await expect(listB.getByText('Interested',{exact:true})).toBeVisible({timeout:15000});
+ report.timings.searchEditToOtherBrowserMs=Math.round(performance.now()-uiStart);
+ await expect(a.getByRole('dialog').getByRole('button',{name:'Edit',exact:true})).toBeEnabled();
+ lead=(await checked(sdk.from('leads').select('*').eq('id',lead.id)))[0];assert.equal(lead.status,'interested');
+ mkdirSync('.local-test-output',{recursive:true});await b.screenshot({path:'.local-test-output/search-mobile.png'});
  await a.keyboard.press('Escape');
  const start=performance.now();await checked(sdk.rpc('save_lead',{p_id:lead.id,p_expected:lead.updated_at,p_data:{},p_action:'delete'}));
  await expect(listB.getByText('Phone Priority Fixture',{exact:true})).toHaveCount(0,{timeout:15000});
  report.timings.deleteRoundTripMs=Math.round(performance.now()-start);
- report.search={header:true,localInternational:true,fragments:true,phoneFirst:true,name:true,openDetails:true};
+ report.search={header:true,localInternational:true,fragments:true,phoneFirst:true,name:true,openDetails:true,editStatus:true};
  mkdirSync('.local-test-output',{recursive:true});writeFileSync('.local-test-output/search-realtime-report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{if(browser)await browser.close();if(owner)await admin.auth.admin.deleteUser(owner);await sdk.removeAllChannels();await admin.removeAllChannels();}

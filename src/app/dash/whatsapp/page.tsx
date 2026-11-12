@@ -10,7 +10,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useQuery } from "@/lib/workflows/use-query";
-import { saveLead } from "@/lib/leads/actions";
+import { saveLead } from "@/lib/leads/browser-mutations";
 import { fetchWhatsApp, saveWhatsApp } from "@/lib/leads/whatsapp-actions";
 import { fetchLeadRecord } from "@/lib/workflows/actions";
 import { useWorkspace } from "@/components/providers";

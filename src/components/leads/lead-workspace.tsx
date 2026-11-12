@@ -52,7 +52,7 @@ import { AttemptProgress, LeadCard } from "./lead-card";
 import { initials, phoneLink, shortDate } from "@/lib/utils";
 import { statuses, type Lead } from "@/types";
 import type { LeadFilters } from "@/lib/leads/contracts";
-import { saveLead } from "@/lib/leads/actions";
+import { saveLead } from "@/lib/leads/browser-mutations";
 import { useRemoteLeads, useMobileLayout } from "./use-remote-leads";
 import { CsvImportDialog } from "./csv-import-dialog";
 import { ImportHistory } from "./import-history";

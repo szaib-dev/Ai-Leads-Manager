@@ -18,7 +18,7 @@ import type { Lead } from "@/types";
 import { formatMoment, dayInZone } from "@/lib/analytics/contracts";
 import { statuses } from "@/types";
 import { fetchLeadRecord } from "@/lib/workflows/actions";
-import { saveLead } from "@/lib/leads/actions";
+import { saveLead } from "@/lib/leads/browser-mutations";
 import { statusToDb } from "@/lib/leads/contracts";
 import { SafeCallLink } from "./safe-call-link";
 import { publishLead } from "@/lib/realtime/lead-updates";
