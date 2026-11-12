@@ -67,9 +67,8 @@ export function ApplicationSettings({
           ))}
         </fieldset>
         <p className="settings-privacy"><ShieldCheck size={17}/><span>
-          AI uses the existing spending limit. Headers and up to three truncated
-          sample rows are shared with DeepSeek. Missing keys, service errors or
-          budget limits fall back to manual mapping.</span>
+          AI mode shares column names and up to three sample rows with DeepSeek.
+          Your spending limit stays in place. If AI is unavailable, use manual import.</span>
         </p>
         {(error || q.error) && (
           <p role="alert" className="small">
