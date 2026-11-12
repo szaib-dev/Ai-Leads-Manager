@@ -1,4 +1,4 @@
-# Global search and realtime refresh — 2026-11-12
+# Global search and realtime refresh â€” 2026-11-12
 
 The remote refresh previously awaited workspace_state (via a Next.js Server Action) before invalidating active view queries. Lead reads were themselves Server Actions, adding a second server/network trip and potential action queue contention. Refresh now invalidates immediately, alongside counts; lead lists use the existing authenticated, RLS-protected Supabase workspace_leads RPC directly, with request cancellation. The revision batching window drops from 200ms to 25ms. No row payloads or ownership protections change.
 

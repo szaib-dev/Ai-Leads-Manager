@@ -455,7 +455,7 @@ export function LeadWorkspace({
                                 ? "Do not call · previously rejected"
                                 : l.archiveReason === "attempts_exhausted"
                                   ? "Exhausted"
-                                  : mode === "search" ? `${pages.find(p => p.id === l.pageId)?.name || "Collection"} � ${l.archived ? "Archived" : l.category}` : l.category}
+                                  : mode === "search" ? `${pages.find(p => p.id === l.pageId)?.name || "Collection"} · ${l.archived ? "Archived" : l.category}` : l.category}
                             </small>
                             {mode === "attempts" && l.lastAttemptNotes && (
                               <small
