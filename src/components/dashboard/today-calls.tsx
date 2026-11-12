@@ -1,5 +1,6 @@
 "use client";
 
+import { Phone, PhoneCall } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { useWorkspace } from "@/components/providers";
 import { fetchAnalytics } from "@/lib/analytics/actions";
@@ -19,8 +20,8 @@ export function TodayCalls() {
   );
   return (
     <div className="today-calls" aria-label="Today's call activity" title={timezone}>
-      <span><strong>{data?.summary.attempts ?? "–"}</strong> calls today</span>
-      <span><strong>{data?.summary.answered ?? "–"}</strong> answered</span>
+      <span className="call-count"><Phone size={13}/><strong>{data?.summary.attempts ?? "–"}</strong><span>calls today</span></span>
+      <span className="answer-count"><PhoneCall size={13}/><strong>{data?.summary.answered ?? "–"}</strong><span>answered</span></span>
     </div>
   );
 }

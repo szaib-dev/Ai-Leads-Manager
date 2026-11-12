@@ -4,12 +4,14 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { CountryFolders } from "@/components/leads/country-folders";
 import Link from "next/link";
 import { TodayCalls } from "./today-calls";
-import { SyncIndicator } from "@/components/shared/sync-indicator";
+import { logout } from "@/lib/auth/actions";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import {
   Search,
+  PhoneIncoming,
+  LogOut,
   Archive,
   CalendarClock,
   ChartNoAxesCombined,
@@ -44,7 +46,7 @@ const nav = [
   { href: "/dash/whatsapp", label: "WhatsApp Conversations", icon: FaWhatsapp },
   { href: "/dash/attempts", label: "Attempts", icon: PhoneMissed },
   { href: "/dash/followups", label: "Follow-ups", icon: CalendarClock },
-  { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: CalendarClock },
+  { href: "/dash/callbacks", label: "Awaiting Callbacks", icon: PhoneIncoming },
   { href: "/dash/activity", label: "Activity", icon: History },
   { href: "/dash/archive", label: "Archive", icon: Archive },
   { href: "/dash/search", label: "Search", icon: Search },
@@ -53,7 +55,23 @@ const nav = [
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { theme, setTheme } = useTheme();
-  const { pages } = useWorkspace();
+  const { pages, ownerId, toast } = useWorkspace();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [signingOut, startSignOut] = useTransition();
+  const [lastLeads, setLastLeads] = useState("/dash/pages");
+  useEffect(() => {
+    const key = `folio.last-leads:${ownerId}`;
+    try {
+      if (path === "/dash/pages" || path.startsWith("/dash/pages/") || path.startsWith("/dash/countries/")) {
+        sessionStorage.setItem(key, path);
+        queueMicrotask(()=>setLastLeads(path));
+      } else {
+        const saved = sessionStorage.getItem(key);
+        if (saved && /^\/dash\/(pages|countries)(\/|$)/.test(saved)) queueMicrotask(()=>setLastLeads(saved));
+      }
+      if (path !== "/dash/search") sessionStorage.setItem(`folio.search-return:${ownerId}`, path);
+    } catch {}
+  }, [path, ownerId]);
   const [foldersOpen,setFoldersOpen]=useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -69,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     (total, page) => total + page.followupCount,
     0,
   );
+  if (path === "/dash/search") return <main id="main-content">{children}</main>;
   return (
     <div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">
@@ -96,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {nav.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
-              href={href}
+              href={href === "/dash/pages" ? lastLeads : href}
               title={label}
               aria-label={label}
               aria-current={
@@ -115,29 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="profile"
-                style={{ width: "100%", textAlign: "left" }}
-                aria-label="Account menu"
-              >
-                <span className="profile-avatar">SB</span>
-                <div>
-                  <strong>Personal account</strong>
-                  <span>Private workspace</span>
-                </div>
-                <span className="online-dot" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top">
-              <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
-                <Settings2 size={16} />
-                Settings
-              </DropdownMenuItem>
-              <SignOutItem />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button className="profile" style={{width:"100%",textAlign:"left"}} aria-label="Account menu" onClick={()=>setProfileOpen(true)}><span className="profile-avatar">SB</span><div><strong>Personal account</strong><span>Private workspace</span></div><ChevronDown size={15}/></button>
         </div>
       </aside>
       <div className="main-shell">
@@ -180,15 +177,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="topbar-actions">
               <Button variant="ghost" size="icon" aria-label="Search all businesses" onClick={() => router.push("/dash/search")}><Search size={18} /></Button>
               <TodayCalls />
-              <SyncIndicator />
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Application settings"
-                onClick={() => setSettingsOpen(true)}
-              >
-                <Settings2 size={18} />
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Choose theme">
@@ -223,7 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Sparkles size={15} />
                 AI assistant
               </Button>
-              <span className="header-avatar">SB</span>
+              <button className="header-avatar profile-trigger" aria-label="Open profile" onClick={()=>setProfileOpen(true)}>SB</button>
             </div>
           </header>
         )}
@@ -247,7 +235,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {nav.slice(0, 4).map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
-            href={href}
+            href={href === "/dash/pages" ? lastLeads : href}
             aria-current={
               ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/")))
                 ? "page"
@@ -274,7 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top">
             <DropdownMenuItem onSelect={()=>setFoldersOpen(true)}><Folder size={16}/>Country folders</DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href="/dash/callbacks"><CalendarClock size={16} />Awaiting Callbacks</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/dash/callbacks"><PhoneIncoming size={16} />Awaiting Callbacks</Link></DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/dash/activity">
                 <History size={16} />
@@ -300,6 +288,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </DropdownMenu>
       </nav>
       <Dialog open={foldersOpen} onOpenChange={setFoldersOpen}><DialogContent onClick={event=>{if((event.target as Element).closest("a"))setFoldersOpen(false);}}><DialogTitle>Lead Pages</DialogTitle><DialogDescription>Countries and their lead pages.</DialogDescription><CountryFolders/></DialogContent></Dialog>
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}><DialogContent className="account-panel">
+        <span className="account-portrait">SB</span><DialogTitle>Personal account</DialogTitle><DialogDescription>Your private Folio workspace</DialogDescription>
+        <div className="account-options"><button onClick={()=>{setProfileOpen(false);setSettingsOpen(true);}}><Settings2 size={19}/><span>Settings<small>Make Folio feel like you</small></span><ChevronRight size={16}/></button>
+        <button disabled={signingOut} onClick={()=>startSignOut(async()=>{try{await logout();}catch{toast("Sign out could not complete. Please try again.");}})}><LogOut size={19}/><span>{signingOut?"Signing out…":"Log out"}<small>See you next time</small></span></button></div>
+      </DialogContent></Dialog>
       <ApplicationSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

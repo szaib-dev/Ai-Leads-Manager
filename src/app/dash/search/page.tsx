@@ -1,2 +1,2 @@
-import { LeadWorkspace } from "@/components/leads/lead-workspace";
-export default function SearchPage() { return <LeadWorkspace mode="search" />; }
+import { GlobalSearch } from "@/components/leads/global-search";
+export default function SearchPage() { return <GlobalSearch />; }
