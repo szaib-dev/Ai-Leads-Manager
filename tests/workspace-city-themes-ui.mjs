@@ -32,6 +32,7 @@ try {
 
   await ssr.rpc('move_page_location',{p_page:seed.pageId,p_country:location.country,p_city:location.city});
   await page.setViewportSize({width:390,height:844});
+  await page.goto(base+"/dash/cities/"+location.city);
   for(const theme of ['dark','light']){
     await page.evaluate(value=>localStorage.setItem('theme',value),theme);await page.goto(base+'/dash/cities/'+location.city);await expect(page.locator('html')).toHaveClass(new RegExp(theme));await expect(page.getByRole('heading',{name:'Salons',exact:true})).toBeVisible();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);

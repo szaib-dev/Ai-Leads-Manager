@@ -12,7 +12,7 @@ Radix select/dropdown menus and dialogs animate opening and closing. Chat histor
 
 ## Validation and deployment
 
-- TypeScript, lint and 74 unit tests, including folder intent resolution and read-only/ambiguity guards.
+- TypeScript, lint and 75 unit tests, including folder intent resolution and read-only/ambiguity guards.
 - Full existing database regression/concurrency suite and targeted city regression. City checks cover arbitrary names, same-country uniqueness, ownership, frozen approvals, stale/cancel guards, transactional imports, idempotency and non-destructive deletion.
 - `tests/workspace-city-import-ui.mjs` uses the actual Next.js app and isolated local transport fixtures for mouse dragging, lead-count sorting, custom city creation, page movement/creation, imports into cities, desktop/mobile footer bounds, chat-history transitions and folder approval. Its proof credential is fictional and never calls an AI provider.
 - `docs/DEPLOY_CITY_FOLDERS.sql` wraps migration 202611130033 and its version registration in one transaction. The user reported successful installation through Supabase SQL Editor. The CLI session had rejected SQL access, so no new live database timing claim is made.

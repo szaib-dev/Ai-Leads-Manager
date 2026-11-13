@@ -5,6 +5,7 @@ export interface FolderMetadata {
 }
 // Resolve only owner-verified metadata. A folder move always preserves the whole page.
 export function resolveFolderMove(intent:Intent,currentPage:string|undefined,meta:FolderMetadata){
+ if(intent.page==="all")throw new Error("Choose one exact lead page for this folder move.");
  if(intent.selection!=="none" || intent.import!=="none" || intent.filter.groups.length || Object.keys(intent.changes).length)throw new Error("Folder moves keep the complete lead page together. Choose a page without lead filters or selections.");
  const ref=intent.page==="current"?currentPage:intent.page;
  const pages=meta.pages.filter(p=>p.id===ref||p.name.toLowerCase()===ref?.toLowerCase());
