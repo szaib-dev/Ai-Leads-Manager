@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PagesManager } from "./pages-manager";
+import { CityBrowser } from "./cities";
 export function CountryBrowser({countryId}:{countryId?:string}) {
  const q=useQuery("country-structure",fetchCountries);
  const {pages,refreshPages,toast}=useWorkspace();
@@ -25,6 +26,7 @@ export function CountryBrowser({countryId}:{countryId?:string}) {
  async function mutate(action:()=>Promise<unknown>,next?:{id:string;name:string}[]) { if(busy)return;setBusy(true);if(next)setPreview({base:q.data,countries:next});try {const result=await action();if(next)setPreview({base:q.data,countries:next.map(c=>c.id==="pending"?{...c,id:String(result)}:c)});void refreshPages().catch(()=>toast("Saved. Counts will retry."));setEdit(null);setRemove(null);} catch(e){setPreview(null);toast(e instanceof Error?e.message:"Could not save");}finally{setBusy(false);} }
  if(q.loading)return <div className="country-grid" aria-label="Loading countries">{[1,2,3].map(n=><div key={n} className="country-skeleton"/>)}</div>;
  if(q.error)return <p role="alert">{q.error}<Button onClick={q.retry}>Retry</Button></p>;
+ if(countryId && countryId!=="unassigned" && country)return <CityBrowser countryId={countryId}/>;
  if(countryId) return <><Link className="country-back" href="/dash/pages"><ArrowLeft size={15}/>Lead Pages</Link>{countryId!=="unassigned"&&!country ? <p>Country unavailable.</p> : <PagesManager countryId={countryId} countryName={country?.name || "Unassigned"} pageIds={pages.filter(p=>assigned(p.id)===countryId).map(p=>p.id)}/>}</>;
  return <><PageHeader title="Lead Pages" description="Your countries, collections, and next conversations." actions={<Button onClick={()=>setEdit({id:null,name:""})}><Plus size={16}/>Create Country</Button>}/>
  <label className="search-field page-search"><input aria-label="Search countries" placeholder="Search countries..." value={search} onChange={e=>setSearch(e.target.value)}/></label>

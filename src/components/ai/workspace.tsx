@@ -540,9 +540,12 @@ function Workspace({
         attach(e.dataTransfer.files[0]);
       }}
     >
-      {historyOpen && (
+      {(
         <button
           className={styles.scrim}
+          data-open={historyOpen}
+          aria-hidden={!historyOpen}
+          tabIndex={historyOpen ? 0 : -1}
           aria-label="Close chat history"
           onClick={() => setHistoryOpen(false)}
         />
@@ -550,6 +553,8 @@ function Workspace({
       <aside
         className={`${styles.history} ${historyOpen ? styles.historyVisible : ""}`}
         aria-label="Chat history"
+        aria-hidden={!historyOpen}
+        inert={!historyOpen}
       >
         <div className={styles.historyTop}>
           <strong>Your conversations</strong>

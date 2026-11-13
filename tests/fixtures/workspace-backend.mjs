@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { writeFileSync, readFileSync, existsSync } from "node:fs";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 export async function startWorkspaceFixture() {
+  const countries=[],cities=[];
   const pages = [],
     leads = [],
     chats = [],
@@ -72,11 +73,28 @@ export async function startWorkspaceFixture() {
       return;
     }
     if (url.pathname.startsWith("/rest/v1/rpc/")) {
-      const name = url.pathname.split("/").at(-1);
+      let name = url.pathname.split("/").at(-1);
+      if(name==="import_in_country"||name==="import_in_location"){Object.assign(body,{...body.p_payload,__country:body.p_country,__city:body.p_city});name="commit_import";}
+      if(name==="import_preferences")return send({mode:"manual"});
+      if(name==="ai_execute"){
+        const operation=operations.find(o=>o.id===body.p_id);
+        if(operation?.folderMove){const p=pages.find(p=>p.id===operation.scope.pageId);p.city_id=operation.cityId;operation.status="completed";revision++;return send(operation);}
+      }
+      if(name==="ai_chat_event")return send(true);
+      if(name==="import_row_classifications")return send(body.p_urls.map((_,index)=>({index,active:false,previous:false})));
+      if(name==="manage_city"){
+        if(body.p_delete){for(const p of pages)if(p.city_id===body.p_id)p.city_id=null;cities.splice(cities.findIndex(c=>c.id===body.p_id),1);revision++;return send(body.p_id);}
+        if(body.p_id){const city=cities.find(c=>c.id===body.p_id);city.name=body.p_name;revision++;return send(city.id);}
+        const id=randomUUID();cities.push({id,country_id:body.p_country,name:body.p_name});revision++;return send(id);
+      }
+      if(name==="move_page_location"){const p=pages.find(p=>p.id===body.p_page);p.country_id=body.p_country;p.city_id=body.p_city;revision++;return send(null);}
+      if(name==="create_location_page"||name==="create_country_page"){
+        const id=randomUUID();pages.push({id,name:body.p_name,description:body.p_description,country_id:body.p_country,city_id:body.p_city,created_at:now()});revision++;return send(id);
+      }
       const row = leads.find(
         (l) => l.id === (body.p_id ?? body.p_lead ?? body.p_lead_id),
       );
-      if(name === "country_structure")return send({countries:[],assignments:pages.map(p=>({id:p.id,country_id:null}))});
+      if(name === "country_structure")return send({countries,cities,assignments:pages.map(p=>({id:p.id,country_id:p.country_id||null,city_id:p.city_id||null}))});
       if(name === "workspace_followups") {
         const category = f => f.completed_at ? "completed" : f.scheduled_date < body.p_day ? "overdue" : f.scheduled_date === body.p_day ? "today" : "upcoming";
         const all = apiFollowups.filter(f => !f.cancelled_at && !leads.find(l=>l.id===f.lead_id)?.deleted_at).map(f=>({...f,category:category(f),lead:leads.find(l=>l.id===f.lead_id)}));
@@ -97,7 +115,7 @@ export async function startWorkspaceFixture() {
       if(name === "commit_import"){
         if(importRequests.has(body.p_request))return send(importRequests.get(body.p_request));
         let target=body.p_page;
-        if(body.p_mode==="new"){target=randomUUID();pages.push({id:target,name:body.p_new_name,description:"",created_at:now()});}
+        if(body.p_mode==="new"){target=randomUUID();pages.push({id:target,name:body.p_new_name,description:"",country_id:body.__country,city_id:body.__city,created_at:now()});}
         if(!pages.some(p=>p.id===target)){res.writeHead(400);return send({message:"Page unavailable"});}
         let imported=0,duplicates=0;
         for(const entry of body.p_rows){
@@ -453,6 +471,8 @@ export async function startWorkspaceFixture() {
     key: "sb_publishable_browser_fixture",
     adminKey: "sb_secret_browser_fixture",
     close: () => new Promise((r) => server.close(r)),
+    seedCities(){const country=randomUUID(),city=randomUUID();countries.push({id:country,name:"Pakistan"});cities.push({id:city,country_id:country,name:"Mirpur"});for(const p of pages)p.country_id=country;return {country,city};},
+    seedFolderPlan(chatId,pageId,cityId){const page=pages.find(p=>p.id===pageId),city=cities.find(c=>c.id===cityId),id=randomUUID();operations.push({id,owner_id:user.id,action:"organize_page",status:"planned",mode:"strict",count:1,requiresApproval:true,expiresAt:now(),page:1,totalPages:1,rows:[],summary:"Move this complete page into the city folder.",folderMove:{pageName:page.name,destination:`Pakistan / ${city.name}`},scope:{pageId},cityId});messages.push({id:randomUUID(),owner_id:user.id,conversation_id:chatId,role:"assistant",content:"Review this folder move before approving.",status:"completed",error:null,reply_to:null,operation_id:id,created_at:now()});},
     seedDesignFixtures() {
       const day=now().slice(0,10);
       for(const name of ["Salons", "Dental clinics", "Skin care"]) {

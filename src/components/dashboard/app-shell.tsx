@@ -62,12 +62,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const key = `folio.last-leads:${ownerId}`;
     try {
-      if (path === "/dash/pages" || path.startsWith("/dash/pages/") || path.startsWith("/dash/countries/")) {
+      if (path === "/dash/pages" || path.startsWith("/dash/pages/") || (path.startsWith("/dash/countries/") || path.startsWith("/dash/cities/"))) {
         sessionStorage.setItem(key, path);
         queueMicrotask(()=>setLastLeads(path));
       } else {
         const saved = sessionStorage.getItem(key);
-        if (saved && /^\/dash\/(pages|countries)(\/|$)/.test(saved)) queueMicrotask(()=>setLastLeads(saved));
+        if (saved && /^\/dash\/(pages|countries|cities)(\/|$)/.test(saved)) queueMicrotask(()=>setLastLeads(saved));
       }
       if (path !== "/dash/search") sessionStorage.setItem(`folio.search-return:${ownerId}`, path);
     } catch {}
@@ -120,11 +120,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               title={label}
               aria-label={label}
               aria-current={
-                ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/")))
+                ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && (path.startsWith("/dash/countries/") || path.startsWith("/dash/cities/"))))
                   ? "page"
                   : undefined
               }
-              className={`nav-item ${((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/"))) ? "active" : ""}`}
+              className={`nav-item ${((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && (path.startsWith("/dash/countries/") || path.startsWith("/dash/cities/")))) ? "active" : ""}`}
             >
               <Icon size={19} />
               <span>{label}</span>
@@ -230,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             key={href}
             href={href === "/dash/pages" ? lastLeads : href}
             aria-current={
-              ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && path.startsWith("/dash/countries/")))
+              ((href === "/dash" ? path === href : path.startsWith(href)) || (href === "/dash/pages" && (path.startsWith("/dash/countries/") || path.startsWith("/dash/cities/"))))
                 ? "page"
                 : undefined
             }

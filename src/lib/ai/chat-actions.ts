@@ -264,7 +264,7 @@ export async function chatOperation(input: {
       p_operation: r.data.id,
       p_content:
         r.data.status === "completed"
-          ? `Database confirmed **${r.data.action.replaceAll("_", " ")}** for **${r.data.count}** records.`
+          ? r.data.folderMove ? `Moved ${r.data.folderMove.pageName} to ${r.data.folderMove.destination}. Leads and call history stayed together.` : `Database confirmed **${r.data.action.replaceAll("_", " ")}** for **${r.data.count}** records.`
           : `Review undo for **${r.data.count}** records below.`,
       p_token: aiServerToken(),
     });

@@ -26,7 +26,7 @@ try {
   browser=await chromium.launch({channel:"msedge"});
   const context=await browser.newContext({viewport:{width:1440,height:1000}});
   await context.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
-  await context.addInitScript(()=>localStorage.setItem("theme","dark"));
+  await context.addInitScript(()=>{if(!localStorage.getItem("theme"))localStorage.setItem("theme","dark");});
   page=await context.newPage();page.setDefaultTimeout(20000);
   await page.goto(base+"/dash/pages/"+seed.pageId);await expect(page.getByRole("combobox",{name:"Status filter",exact:true})).toHaveText("New");
   await expect(page.getByText("Salons new fixture",{exact:true})).toBeVisible();await expect(page.getByText("Follow-up fixture 1",{exact:true})).toHaveCount(0);report.defaultNew=true;
@@ -34,7 +34,7 @@ try {
   await page.goto(base+"/dash/countries/unassigned");
   const cards=page.locator('.collection-card');await expect(cards).toHaveCount(3);
   const first=await cards.first().getByRole('heading').innerText();
-  const handle=cards.first().getByRole('button',{name:'Reorder card'});await handle.focus();await page.keyboard.press('Space');await expect(page.locator('[data-dragging=true]')).toHaveCount(1);await page.waitForTimeout(200);await page.keyboard.press('ArrowRight');await page.waitForTimeout(200);await page.keyboard.press('Space');
+  await cards.first().focus();await page.keyboard.press('Space');await expect(page.locator('[data-dragging=true]')).toHaveCount(1);await page.waitForTimeout(200);await page.keyboard.press('ArrowRight');await page.waitForTimeout(200);await page.keyboard.press('Space');
   await expect.poll(()=>cards.first().getByRole('heading').innerText()).not.toBe(first);
   const newFirst=await cards.first().getByRole('heading').innerText();await page.reload();await expect(cards.first().getByRole('heading')).toHaveText(newFirst);report.pageOrderPersists=true;
   await page.screenshot({path:'.local-test-output/redesign-pages-dark.png',fullPage:true});

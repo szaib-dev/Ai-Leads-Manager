@@ -17,9 +17,11 @@ import { aiConfigured, aiServerToken } from "./config";
 import type { ProviderUsage } from "./deepseek";
 import { analyzeResult } from "./relevance";
 import { isRelevanceQuestion } from "./relevance-contracts";
+import { resolveFolderMove } from "./folder-move";
 type Client = Awaited<ReturnType<typeof databaseContext>>["client"];
 type Rpc =
   | "ai_context"
+  | "ai_stage_page_location"
   | "ai_assistant_state"
   | "ai_set_mode"
   | "ai_stage"
@@ -33,7 +35,7 @@ export async function rpc<T>(
   name: Rpc,
   args: Record<string, unknown> = {},
 ) {
-  const r = await client.rpc(name, args as never);
+  const r = await client.rpc(name as never, args as never);
   if (r.error) throw new Error(r.error.message);
   return r.data as unknown as T;
 }
@@ -65,7 +67,8 @@ export function message(e: unknown) {
       : "Request failed. Your workspace remains protected.";
 }
 interface Metadata {
-  pages: { id: string; name: string; country?: string }[];
+  pages: { id: string; name: string; country?: string; countryId?:string|null; cityId?:string|null; city?:string }[];
+  cities?: {id:string;name:string;country_id:string;country:string}[];
   currentPage: string | null;
   selectedCount: number;
   verifiedRecentImport: string | null;
@@ -382,6 +385,11 @@ export async function planAssistant(
       };
     const mismatch = validateInstruction(intent, text, context.history);
     if (mismatch) return { data: { reply: mismatch } };
+    if(intent.action==="organize_page"){
+      const folder=resolveFolderMove(intent,context.pageId,meta);
+      const plan=await rpc<AiResult>(client,"ai_stage_page_location",{p_request:requestId,p_page:folder.pageId,p_city:folder.cityId,p_token:aiServerToken()});
+      return {data:{result:plan}};
+    }
     const explicitSelection = text.match(
       /\b(?:these|the)\s+(\d+)\s+(?:selected\s+)?(?:businesses|leads|records)\b/i,
     );

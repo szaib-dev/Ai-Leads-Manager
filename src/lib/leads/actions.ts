@@ -209,11 +209,12 @@ export async function importCsv(
       p_total: parsed.total,
       p_invalid: parsed.invalid.length,
     };
-    const country = form.get("countryId");
+    const country = form.get("countryId"), city = form.get("cityId");
+    if(city && !country) throw new Error("Choose a country for this city.");
     let data;
     if(country) {
       const { client } = await databaseContext();
-      const r = await client.rpc("import_in_country" as never, {p_country:uuidSchema.parse(country),p_payload:importArgs} as never);
+      const r = await client.rpc((city ? "import_in_location" : "import_in_country") as never, {p_country:uuidSchema.parse(country),...(city ? {p_city:uuidSchema.parse(city)} : {}),p_payload:importArgs} as never);
       if(r.error) throw new Error(r.error.message); data=r.data;
     } else data=await rpc("commit_import",importArgs);
     return { data: data as unknown as ImportResult };

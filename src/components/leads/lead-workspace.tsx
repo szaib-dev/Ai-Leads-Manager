@@ -85,6 +85,7 @@ export function LeadWorkspace({
     clearAiSelection,
   } = useWorkspace();
   const countryStructure = useQuery("country-structure",fetchCountries);
+  const parentCity=countryStructure.data?.assignments.find(p=>p.id===pageId)?.city_id;
   const parentCountry = countryStructure.data?.assignments.find(p=>p.id===pageId)?.country_id;
   const parentName = countryStructure.data?.countries.find(c=>c.id===parentCountry)?.name || "Unassigned";
   const viewKey = `folio.lead-view:v2:${ownerId}:${mode}:${pageId ?? "all"}`;
@@ -642,9 +643,9 @@ export function LeadWorkspace({
     <>
       <div className="back-row">
         {mode === "page" ? (
-          <Link href={`/dash/countries/${parentCountry || "unassigned"}`}>
+          <Link href={parentCity ? `/dash/cities/${parentCity}` : `/dash/countries/${parentCountry || "unassigned"}`}>
             <ArrowLeft size={14} />
-            Lead Pages / {parentName}
+            Lead Pages / {parentName}{parentCity ? ` / ${countryStructure.data?.cities?.find(c=>c.id===parentCity)?.name || "City"}` : ""}
           </Link>
         ) : (
           <span className="eyebrow">YOUR CALLING WORKSPACE</span>
@@ -828,7 +829,7 @@ export function LeadWorkspace({
       </Dialog>
       {manualOpen&&<ManualLeadDialog pageId={pageId} onClose={()=>setManualOpen(false)}/>}
       {importOpen && (
-        <CsvImportDialog
+        <CsvImportDialog initialCountryId={parentCountry||undefined} initialCityId={parentCity||undefined}
           pageId={pageId}
           onClose={() => setImportOpen(false)}
           onImported={() => {}}

@@ -33,11 +33,12 @@ export function Operation({
       <div className={styles.operationHeading}>
         <div className={styles.operationTitle}>
           <span className={styles.operationIcon}>{result.action === "search" ? <Search size={18}/> : <Database size={18}/>}</span>
-          <div><strong>{result.action.replaceAll("_", " ")}</strong><small>{result.count.toLocaleString()} {result.count === 1 ? "record" : "records"}{result.status === "planned" ? " matched" : result.action === "search" ? " found" : " changed"}</small></div>
+          <div><strong>{result.folderMove ? "Move page to city" : result.action.replaceAll("_", " ")}</strong><small>{result.count.toLocaleString()} {result.folderMove ? "lead page" : result.count === 1 ? "record" : "records"}{result.status === "planned" ? " matched" : result.action === "search" ? " found" : " changed"}</small></div>
         </div>
         <span className={styles.operationState}>{result.status === "completed" ? <CheckCircle2 size={13}/> : <CircleDot size={13}/>} {result.status === "planned" ? "Review needed" : result.status}</span>
       </div>
       <p>{result.summary}</p>
+      {result.folderMove&&<dl><div><dt>Lead page</dt><dd>{result.folderMove.pageName}</dd></div><div><dt>Destination</dt><dd>{result.folderMove.destination}</dd></div></dl>}
       {result.scope && (
         <p className="small muted">
           {result.scope.pageId ? "Scoped to a lead page" : "All Leads"}
@@ -107,7 +108,7 @@ export function Operation({
               Cancel plan
             </Button>
             <Button disabled={busy} onClick={() => onAction("confirm")}>
-              Approve {result.count.toLocaleString()} records
+              {result.folderMove ? "Approve folder move" : `Approve ${result.count.toLocaleString()} records`}
             </Button>
           </div>
         </>

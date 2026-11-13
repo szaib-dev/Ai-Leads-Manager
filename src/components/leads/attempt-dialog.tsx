@@ -79,7 +79,7 @@ export function AttemptDialog({
           if (busy) e.preventDefault();
         }}
       >
-        <div className="dialog-hero-icon">
+        <div className={styles.header}><div className="dialog-hero-icon">
           <Phone size={23} />
         </div>
         <DialogTitle>How did the call go?</DialogTitle>
@@ -98,7 +98,7 @@ export function AttemptDialog({
             <span>Opening the dialer does not record an attempt.</span>
           </div>
         )}
-        <form
+        </div><form className={styles.form}
           onSubmit={async (e) => {
             e.preventDefault();
             if (!lead || submitting.current) return;
@@ -177,7 +177,7 @@ export function AttemptDialog({
             }
           }}
         >
-          <fieldset className={styles.outcomes} disabled={busy}>
+          <div className={styles.body}><fieldset className={styles.outcomes} disabled={busy}>
             <legend>Call outcome</legend>
             {[...callOutcomes, "whatsapp" as const].map((s) => {
               const Icon = icons[s];
@@ -252,7 +252,7 @@ export function AttemptDialog({
               {error}
             </p>
           )}
-          <div className="dialog-actions">
+          </div><div className={`dialog-actions ${styles.footer}`}>
             <Button
               type="button"
               variant="outline"

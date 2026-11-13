@@ -13,6 +13,7 @@ export async function prepareCsvImport(input: {
   fileName: string;
   pageId?: string;
   countryId?: string;
+  cityId?: string;
   requestId: string;
   mode: "new" | "append" | "replace";
   newName: string;
@@ -31,6 +32,7 @@ export async function prepareCsvImport(input: {
         fileName: z.string().trim().min(1).max(255),
         pageId: z.uuid().optional(),
         countryId: z.uuid().optional(),
+        cityId: z.uuid().optional(),
         requestId: z.uuid(),
         mode: z.enum(["new", "append", "replace"]),
         newName: z.string().max(100),
@@ -104,6 +106,7 @@ export async function prepareCsvImport(input: {
         mode: input.mode,
         pageId: input.pageId ?? "",
         countryId: input.countryId ?? "",
+        cityId: input.cityId ?? "",
         newName: input.newName,
       }),
     );

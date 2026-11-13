@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SortableGrid } from "@/components/shared/sortable-grid";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { useState } from "react";
-import { ArrowUpRight, FolderPlus, Plus, Search } from "lucide-react";
+import { ArrowDownUp, FolderPlus, Plus, Search } from "lucide-react";
 import { useWorkspace } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,38 +15,41 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { shortDate } from "@/lib/utils";
-import { createCountryPage,moveCountryPage } from "@/lib/leads/country-actions";
+import { createCountryPage,movePageLocation } from "@/lib/leads/country-actions";
 import { fetchCountries } from "@/lib/leads/browser-reads";
 import { useQuery } from "@/lib/workflows/use-query";
 import { Select } from "@/components/ui/select";
 import { managePage } from "@/lib/leads/actions";
 import { CsvImportDialog } from "./csv-import-dialog";
-export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;countryName?:string;pageIds?:string[]}) {
+export function PagesManager({countryId,cityId,countryName,pageIds,summaryIds,sectionTitle,intro,headerActions}:{countryId?:string;cityId?:string;countryName?:string;pageIds?:string[];summaryIds?:string[];sectionTitle?:string;intro?:React.ReactNode;headerActions?:React.ReactNode}) {
   const countries=useQuery("country-structure",fetchCountries);
   const [moveId,setMoveId]=useState<string|null>(null);
   const [destination,setDestination]=useState("");
+  const [destinationCity,setDestinationCity]=useState("");
   const { pages, refreshPages, toast, timezone } = useWorkspace();
   const [busy, setBusy] = useState(false),
     [editId, setEditId] = useState<string | null>(null),
     [deleteId, setDeleteId] = useState<string | null>(null),
     [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [pageFilter,setPageFilter]=useState("all");
+  const [sort,setSort]=useState("manual");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const scoped = pages.filter(p=>!pageIds || pageIds.includes(p.id));
+  const summaryPages=summaryIds ? pages.filter(p=>summaryIds.includes(p.id)) : scoped;
   const filtered = scoped.filter((p) =>
-    (pageFilter === "all" || (pageFilter === "empty" ? p.leadCount===0 : p.leadCount>0)) && (p.name+" "+p.description).toLowerCase().includes(search.toLowerCase()),
-  );
+    (p.name+" "+p.description).toLowerCase().includes(search.toLowerCase()),
+  ).sort((a,b)=>sort==="leads_desc" ? b.leadCount-a.leadCount : sort==="leads_asc" ? a.leadCount-b.leadCount : 0);
   return (
     <>
       <PageHeader
         eyebrow="A PLACE FOR EVERY POSSIBILITY"
         title={countryName || "Lead Pages"}
-        description={`${scoped.length} pages · ${scoped.reduce((n,p)=>n+p.leadCount,0)} leads · ${scoped.reduce((n,p)=>n+p.contactedCount,0)} contacted`}
+        description={`${summaryPages.length} pages · ${summaryPages.reduce((n,p)=>n+p.leadCount,0)} leads · ${summaryPages.reduce((n,p)=>n+p.contactedCount,0)} contacted`}
         actions={
           <>
+            {headerActions}
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               Import CSV
             </Button>
@@ -64,12 +67,13 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
           </>
         }
       />
+      {intro}
       <div className="section-heading">
         <div>
-          <h2>Lead pages</h2>
+          <h2>{sectionTitle || "Lead pages"}</h2>
           <span className="count-pill">{scoped.length}</span>
         </div>
-        <label className="search-field page-search">
+        <div className="collection-tools"><label className="search-field page-search">
           <Search size={16} />
           <input
             aria-label="Search lead pages"
@@ -77,19 +81,16 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </label>
+        </label><label className="collection-sort"><ArrowDownUp size={15}/><Select aria-label="Sort lead pages" value={sort} onValueChange={setSort}><option value="manual">Custom order</option><option value="leads_desc">Most leads first</option><option value="leads_asc">Fewest leads first</option></Select></label></div>
       </div>
-      <div style={{maxWidth:200,marginBottom:16}}><Select aria-label="Filter lead pages" value={pageFilter} onValueChange={setPageFilter}><option value="all">All pages</option><option value="active">With leads</option><option value="empty">Empty pages</option></Select></div>
-      <p className="small muted" style={{marginBottom:16}}>Drag a handle to arrange your pages. Order is saved in this browser.</p>
-      <SortableGrid items={filtered} storageKey={`pages:${countryId || "all"}`} className="page-grid" itemClassName="page-card collection-card" renderItem={(p, handle) => {
+      <SortableGrid wholeCard preserveInputOrder={sort!=="manual"} onReorder={()=>setSort("manual")} items={filtered} storageKey={`pages:${countryId || "all"}`} className="page-grid" itemClassName="page-card collection-card" renderItem={(p) => {
           const contacted = p.contactedCount;
           return (
             <>
-              <div className="collection-drag-handle">{handle}</div>
               <Link href={`/dash/pages/${p.id}`} style={{ display: "block" }}>
                 <div className="page-card-top">
                   <span className={`country-icon ${p.color}`}>{p.flag}</span>
-                  <ArrowUpRight size={19} />
+
                 </div>
                 <h2>{p.name}</h2>
                 <p>{p.description}</p>
@@ -98,7 +99,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
                     {p.newCount}
                     <span>new leads</span>
                   </strong>
-                  <span className="collection-total">{p.leadCount} total inside <ArrowUpRight size={13}/></span>
+                  <span className="collection-total">{p.leadCount} total inside</span>
                 </div>
                 <div className="page-progress">
                   <span
@@ -131,7 +132,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
                 >
                   Rename
                 </Button>
-                <Button variant="ghost" onClick={() => {setMoveId(p.id);setDestination(countryId === "unassigned" ? "" : countryId || "");}}>Move</Button>
+                <Button variant="ghost" onClick={() => {setMoveId(p.id);setDestination(countryId === "unassigned" ? "" : countryId || "");setDestinationCity(cityId||"");}}>Move</Button>
                 <Button variant="ghost" onClick={() => setDeleteId(p.id)}>
                   Delete
                 </Button>
@@ -167,7 +168,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
           description={search ? "Try another page name or clear your search." : "Add a page for a city, category, or calling campaign."}
         />
       )}
-      <Dialog open={!!moveId} onOpenChange={open=>{if(!open&&!busy)setMoveId(null);}}><DialogContent><DialogTitle>Move lead page</DialogTitle><DialogDescription>Leads and history stay with this page.</DialogDescription><Select aria-label="Destination country" value={destination} onValueChange={setDestination}><option value="">Unassigned</option>{countries.data?.countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select><div className="dialog-actions"><Button disabled={busy} onClick={async()=>{if(busy)return;setBusy(true);try{await moveCountryPage(moveId!,destination||null);await refreshPages();countries.retry();setMoveId(null);}catch(e){toast(e instanceof Error?e.message:"Could not move page");}finally{setBusy(false);}}}>Move page</Button></div></DialogContent></Dialog>
+      <Dialog open={!!moveId} onOpenChange={open=>{if(!open&&!busy)setMoveId(null);}}><DialogContent><DialogTitle>Move lead page</DialogTitle><DialogDescription>Leads and history stay with this page.</DialogDescription><Select aria-label="Destination country" value={destination} onValueChange={value=>{setDestination(value);setDestinationCity("");}}><option value="">Unassigned</option>{countries.data?.countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select>{destination&&<label className="field-label">City<Select aria-label="Destination city" value={destinationCity} onValueChange={setDestinationCity}><option value="">Country level</option>{countries.data?.cities?.filter(c=>c.country_id===destination).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>}<div className="dialog-actions"><Button disabled={busy} onClick={async()=>{if(busy)return;setBusy(true);try{await movePageLocation(moveId!,destination||null,destinationCity||null);await refreshPages();countries.retry();setMoveId(null);}catch(e){toast(e instanceof Error?e.message:"Could not move page");}finally{setBusy(false);}}}>Move page</Button></div></DialogContent></Dialog>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogTitle>
@@ -195,7 +196,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
                     }
                     await refreshPages();
                   } else {
-                    await createCountryPage(name.trim(),description.trim(),countryId && countryId!=="unassigned" ? countryId : null);
+                    await createCountryPage(name.trim(),description.trim(),countryId && countryId!=="unassigned" ? countryId : null,cityId);
                     await refreshPages();
                   }
                   setName("");
@@ -247,6 +248,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
       </Dialog>
       {importOpen && (
         <CsvImportDialog
+          initialCountryId={countryId} initialCityId={cityId}
           onClose={() => setImportOpen(false)}
           onImported={() => {}}
         />

@@ -10,6 +10,7 @@ export const actions = [
   "archive_exhausted",
   "restore",
   "move",
+  "organize_page",
   "undo_import",
   "undo_operation",
   "clarify",
@@ -194,6 +195,7 @@ export function needsApproval(mode: PermissionMode, action: string) {
   );
 }
 export interface AiResult {
+  folderMove?: {pageName:string;destination:string};
   analysis?: import("./relevance-contracts").Relevance;
   id: string;
   action: string;
@@ -275,6 +277,7 @@ export function validateInstruction(
     archive_exhausted: /\b(?:archive|exhausted)\b/i,
     restore: /\b(?:restore|unarchive|bring back)\b/i,
     move: /\b(?:move|relocate|organize)\b/i,
+    organize_page: /\b(?:move|relocate|organize|put)\b/i,
     undo_import: /\b(?:undo|revert|reverse)\b/i,
     undo_operation: /\b(?:undo|revert|reverse)\b/i,
     append_notes: /\b(?:append|add|note|write)\b/i,

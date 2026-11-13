@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { autoMapCsv } from "@/lib/ai/actions";
 import { csvSample, type MappingSuggestion } from "@/lib/ai/contracts";
 import type { Cleanup } from "@/lib/imports/cleanup";
-import { Upload, Check, Sparkles, Hammer, FileCheck2 } from "lucide-react";
+import { Upload, Check, Sparkles, FileSpreadsheet, FileCheck2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,11 +33,13 @@ import styles from "./imports.module.css";
 export function CsvImportDialog({
   pageId,
   initialCountryId,
+  initialCityId,
   onClose,
   onImported,
 }: {
   pageId?: string;
   initialCountryId?: string;
+  initialCityId?: string;
   onClose: () => void;
   onImported: () => void;
 }) {
@@ -45,7 +47,8 @@ export function CsvImportDialog({
   const router = useRouter();
   const countries = useQuery("country-structure",fetchCountries);
   const [country,setCountry] = useState(initialCountryId === "unassigned" ? "" : initialCountryId || "");
-  const countryPages = pages.filter(p => !country || countries.data?.assignments.some(a => a.id===p.id && a.country_id===country));
+  const [city,setCity]=useState(initialCityId||"");
+  const countryPages=pages.filter(p=>countries.data?.assignments.some(a=>a.id===p.id && (a.country_id||"")===country && (!city || a.city_id===city)));
 
   const [csv, setCsv] = useState<ReturnType<typeof parseCsv> | null>(null),
     [text, setText] = useState(""),
@@ -123,6 +126,7 @@ export function CsvImportDialog({
       setAiBusy(true);
       const prepared = await prepareCsvImport({
         countryId: country || undefined,
+        cityId: city || undefined,
         text: raw,
         fileName: file.name,
         pageId: target || undefined,
@@ -179,12 +183,14 @@ export function CsvImportDialog({
           if (busy) e.preventDefault();
         }}
       >
-        <DialogTitle>{result ? "Import complete" : "Import leads"}</DialogTitle>
+        <div className={styles.header}><span className={styles.importMark}><FileSpreadsheet size={22}/></span><div><DialogTitle>{result ? "Import complete" : "Import leads"}</DialogTitle>
         <DialogDescription>
           {result
             ? "Your records are saved in Supabase. Import history keeps this batch available for undo."
-            : "Choose a UTF-8 CSV, map its columns, and review before importing."}
-        </DialogDescription>
+            : "Bring your next conversations into one place."}
+        </DialogDescription></div></div>
+        {!result && <ol className={styles.steps} aria-label="Import progress">{["Choose file", "Match columns", "Review & import"].map((label,index)=><li key={label} data-active={(review ? 2 : csv ? 1 : 0)===index}><span>{index+1}</span>{label}</li>)}</ol>}
+        <div className={styles.body}>
         {result ? (
           <>
             <div className="info-box">
@@ -235,8 +241,9 @@ export function CsvImportDialog({
           </>
         ) : (
           <>
-            <label className="field-label">Country<Select aria-label="Import country" value={country} disabled={busy} onValueChange={value=>{setCountry(value);setTarget("");setReview(undefined);}}><option value="">Unassigned / all pages</option>{countries.data?.countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>
-            <input
+            <div className={styles.location}><label className="field-label">Country<Select aria-label="Import country" value={country} disabled={busy} onValueChange={value=>{setCountry(value);setCity("");setTarget("");setReview(undefined);}}><option value="">Unassigned</option>{countries.data?.countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>
+            {country&&<label className="field-label">City<Select aria-label="Import city" value={city} disabled={busy} onValueChange={value=>{setCity(value);setTarget("");setReview(undefined);}}><option value="">Country level</option>{countries.data?.cities?.filter(c=>c.country_id===country).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>}
+            </div><input
               ref={fileInput}
               className="sr-only"
               type="file"
@@ -251,7 +258,7 @@ export function CsvImportDialog({
             />
             <button
               type="button"
-              className={styles.dropzone}
+              className={styles.dropzone} data-loaded={!!csv}
               data-dragging={dragging}
               data-working={busy}
               disabled={busy}
@@ -273,7 +280,7 @@ export function CsvImportDialog({
               }}
             >
               <span className={styles.hammer}>
-                <Hammer size={28} />
+                <FileSpreadsheet size={28} />
               </span>
               <strong>
                 {busy
@@ -295,7 +302,7 @@ export function CsvImportDialog({
             </p>
             {csv && (
               <>
-                <div className="info-box">
+                <details className={styles.aiPanel}><summary><Sparkles size={15}/> Mapping assistance <span>Optional</span></summary>
                   <div
                     style={{
                       display: "flex",
@@ -381,8 +388,8 @@ export function CsvImportDialog({
                       </Button>
                     </div>
                   )}
-                </div>
-                <div className={styles.mapping}>
+                </details>
+                <div className={styles.mapping} hidden={!!review}>
                   {fields.map((field) => (
                     <label key={field} className="field-label">
                       {labels[field]}
@@ -461,14 +468,16 @@ export function CsvImportDialog({
                       disabled={busy}
                       onValueChange={(value) => {
                         setMode(value as typeof mode);
+                        if(value!=="new"&&!countryPages.some(p=>p.id===target))setTarget(countryPages[0]?.id||"");
+                        setReview(undefined);
                         setConfirmed(false);
                       }}
                     >
                       <option value="new">Create new page</option>
-                      <option value="append" disabled={!pages.length}>
+                      <option value="append" disabled={!countryPages.length}>
                         Append to page
                       </option>
-                      <option value="replace" disabled={!pages.length}>
+                      <option value="replace" disabled={!countryPages.length}>
                         Replace page leads
                       </option>
                     </Select>
@@ -494,6 +503,7 @@ export function CsvImportDialog({
                           setConfirmed(false);
                         }}
                       >
+                        <option value="">Choose a lead page</option>
                         {countryPages.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
@@ -503,7 +513,7 @@ export function CsvImportDialog({
                     </label>
                   )}
                 </div>
-                {sample && (
+                {sample && review && (
                   <>
                     <h3 className="small">Preview · first 5 valid rows</h3>
                     <div className={styles.preview}>
@@ -644,10 +654,16 @@ export function CsvImportDialog({
                 {error}
               </p>
             )}
-            <div className="dialog-actions">
+
+          </>
+        )}
+        </div>
+        {!result && (<>
+            <div className={`dialog-actions ${styles.footer}`}>
               <Button variant="outline" disabled={busy} onClick={onClose}>
                 Cancel
               </Button>
+              {review&&<Button variant="ghost" disabled={busy} onClick={()=>setReview(undefined)}>Back to columns</Button>}
               {!review ? (
                 <Button
                   disabled={busy || !csv || mapping.business_name === undefined}
@@ -694,6 +710,7 @@ export function CsvImportDialog({
                           preserveExtra: String(preserveExtra),
                           fileName,
                           countryId: country,
+                          cityId: city,
                           mode,
                           pageId: target,
                           newName: name,
@@ -722,8 +739,7 @@ export function CsvImportDialog({
                 </Button>
               )}
             </div>
-          </>
-        )}
+        </>)}
       </DialogContent>
     </Dialog>
   );
