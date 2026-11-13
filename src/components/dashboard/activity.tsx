@@ -52,14 +52,14 @@ export function ActivityPage() {
         <div className={styles.hero}>
           <span className={styles.heroIcon}><Phone size={22}/></span>
           <span className={styles.kicker}>CALLS IN THIS PERIOD</span>
-          <strong>{q.loading || !summary ? "—" : summary.attempts.toLocaleString()}</strong>
+          <strong>{q.loading || !summary ? "â€”" : summary.attempts.toLocaleString()}</strong>
           <p>{summary?.businesses_contacted ?? 0} businesses reached out to</p>
           <div className={styles.rate}><span>Answer rate</span><b>{summary?.answer_rate ?? 0}%</b></div>
           <meter aria-label="Answer rate" min={0} max={100} value={summary?.answer_rate ?? 0}/>
         </div>
         <div className={styles.outcomes}>
           <div className={styles.outcomeHeading}><h2>Every outcome counts</h2><span>Recorded calls</span></div>
-          {[{label:"Answered", value:summary?.answered ?? 0, color:"var(--green)"}, {label:"No answer", value:summary?.unanswered ?? 0, color:"var(--orange)"}, {label:"Voicemail", value:summary?.voicemails ?? 0, color:"var(--accent)"}].map(item => <div className={styles.outcome} key={item.label}><span><i style={{background:item.color}}/>{item.label}</span><strong>{q.loading || !summary ? "—" : item.value}</strong><div className={styles.track}><span style={{width:`${Math.min(100, item.value / Math.max(1,summary?.attempts ?? 0) * 100)}%`,background:item.color}}/></div></div>)}
+          {[{label:"Answered", value:summary?.answered ?? 0, color:"var(--green)"}, {label:"No answer", value:summary?.unanswered ?? 0, color:"var(--orange)"}, {label:"Voicemail", value:summary?.voicemails ?? 0, color:"var(--accent)"}].map(item => <div className={styles.outcome} key={item.label}><span><i style={{background:item.color}}/>{item.label}</span><strong>{q.loading || !summary ? "â€”" : item.value}</strong><div className={styles.track}><span style={{width:`${Math.min(100, item.value / Math.max(1,summary?.attempts ?? 0) * 100)}%`,background:item.color}}/></div></div>)}
         </div>
       </section>
       <div className={styles.metricHeading}><h2>The details that matter</h2><span>Drag to arrange. Saved in this browser.</span></div>
@@ -72,7 +72,7 @@ export function ActivityPage() {
         {id:"rejected", label:"Not interested", value:summary?.rejected, icon:PhoneMissed},
         {id:"callbacks", label:"Callbacks requested", value:summary?.callbacks, icon:MessageSquare},
         {id:"conversion", label:"Interest conversion", value:summary ? `${summary.conversion_rate}%` : undefined, icon:TrendingUp},
-      ]} renderItem={(metric, handle) => <><div className={styles.metricTop}><metric.icon size={18}/>{handle}</div><strong>{q.loading || metric.value === undefined ? "—" : metric.value}</strong><span>{metric.label}</span></>}/>
+      ]} renderItem={(metric, handle) => <><div className={styles.metricTop}><metric.icon size={18}/>{handle}</div><strong>{q.loading || metric.value === undefined ? "â€”" : metric.value}</strong><span>{metric.label}</span></>}/>
       <details className={styles.definitions}><summary>How these numbers are calculated</summary><PerformanceMetrics summary={summary} loading={q.loading}/></details>
       <section className="panel activity-history">
         <div className="panel-heading">
