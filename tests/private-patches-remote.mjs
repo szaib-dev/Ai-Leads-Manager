@@ -22,7 +22,7 @@ try{
  const contexts=await Promise.all([browser.newContext(),browser.newContext({viewport:{width:390,height:844}})]);
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
  const [,b]=await Promise.all(contexts.map(c=>c.newPage()));
- let patchJoined=false;const channelFrames=[];b.on('websocket',ws=>ws.on('framereceived',frame=>{if(typeof frame.payload==='string'){if(frame.payload.includes('lead-change'))channelFrames.push(frame.payload);try{const m=JSON.parse(frame.payload);if(m.topic==='realtime:lead-patches:'+owner&&m.event==='phx_reply'&&m.payload?.status==='ok')patchJoined=true;}catch{}}}));
+ let patchJoined=false;const channelFrames=[];b.on('websocket',ws=>ws.on('framereceived',frame=>{if(typeof frame.payload==='string'){if(frame.payload.includes('lead-change'))channelFrames.push(frame.payload);try{const decoded=JSON.parse(frame.payload);const m=Array.isArray(decoded)?{topic:decoded[2],event:decoded[3],payload:decoded[4]}:decoded;if(m.topic==='realtime:lead-patches:'+owner&&m.event==='phx_reply'&&m.payload?.status==='ok')patchJoined=true;}catch{}}}));
  await b.goto(base+'/dash/search');const input=b.getByRole('textbox',{name:'Search all businesses',exact:true});await input.fill('0317933');const list=b.getByRole('region',{name:'Search results'});await list.getByText('Phone Priority Fixture',{exact:true}).waitFor();
 
  await expect.poll(()=>patchJoined,{timeout:15000}).toBe(true);

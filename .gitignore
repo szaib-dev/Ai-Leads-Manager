@@ -8,3 +8,4 @@ out/
 .local-test-output/
 supabase/.temp/
 test-results/
+.vercel
