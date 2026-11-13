@@ -220,15 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={isAi ? "main-content ai-main-content" : "main-content"}
         >
           {children}
-          {!isAi && (
-            <footer className="content-footer">
-              <span>
-                <span className="online-dot" />A little more organized. A little
-                more connected.
-              </span>
-              <span>Supabase · Live workspace · Phase 05</span>
-            </footer>
-          )}
+
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Mobile navigation">
