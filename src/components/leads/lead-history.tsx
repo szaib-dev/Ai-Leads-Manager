@@ -1,7 +1,8 @@
 "use client";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useState } from "react";
-import { fetchLeadHistory, undoWorkflow } from "@/lib/workflows/actions";
+import { undoWorkflow } from "@/lib/workflows/actions";
+import { fetchLeadHistory } from "@/lib/workflows/browser-reads";
 import { useQuery } from "@/lib/workflows/use-query";
 import { formatMoment } from "@/lib/analytics/contracts";
 import { outcomeLabels } from "@/lib/leads/workflow-contracts";

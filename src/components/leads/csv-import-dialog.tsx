@@ -1,5 +1,5 @@
 "use client";
-import { fetchCountries } from "@/lib/leads/country-actions";
+import { fetchCountries } from "@/lib/leads/browser-reads";
 import { useQuery } from "@/lib/workflows/use-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";

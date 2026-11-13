@@ -30,13 +30,13 @@ try{
  const lead=(await checked(sdk.from('leads').select('*').eq('owner_id',owner).eq('business_name','Phone Priority Fixture')))[0];
  await a.goto(base+'/dash/pages/'+lead.page_id);await expect(a.getByRole('textbox',{name:'Search leads',exact:true})).toBeVisible();
  await a.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Overview',exact:true}).click();await a.getByRole('link',{name:'Lead pages',exact:true}).click();await expect(a).toHaveURL(base+'/dash/pages/'+lead.page_id);
- await a.getByRole('button',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible();
+ await a.getByRole('link',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible();
  await expect(a.locator('.sidebar')).toHaveCount(0);
  const input=a.getByRole('textbox',{name:'Search all businesses',exact:true});await input.fill('0317933');
  await expect(a.getByRole('region',{name:'Search results'}).getByText('Phone Priority Fixture',{exact:true})).toBeVisible();
  await input.press('Enter');await a.screenshot({path:'.local-test-output/search-light.png'});
  await a.getByRole('button',{name:'Close search',exact:true}).click();await expect(a).toHaveURL(base+'/dash/pages/'+lead.page_id);
- await a.getByRole('button',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('region',{name:'Recent searches'}).getByText('0317933',{exact:true})).toBeVisible();
+ await a.getByRole('link',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('region',{name:'Recent searches'}).getByText('0317933',{exact:true})).toBeVisible();
  await a.evaluate(()=>{localStorage.setItem('theme','dark');});await a.reload();await expect(a.locator('html')).toHaveClass(/dark/);await expect(a.locator('[class*=screen]').first()).toHaveCSS('opacity','1');await a.screenshot({path:'.local-test-output/search-dark.png'});
  await b.goto(base+'/dash/search');await b.getByRole('textbox',{name:'Search all businesses',exact:true}).fill('933');await expect(b.getByText('Phone Priority Fixture',{exact:true})).toBeVisible();await b.screenshot({path:'.local-test-output/search-modern-mobile.png'});
  await a.getByRole('button',{name:'Close search',exact:true}).click();await a.getByRole('button',{name:'Open profile',exact:true}).click();await a.getByRole('button',{name:/^Log out/}).click();await expect(a).toHaveURL(/login/,{timeout:20000});

@@ -3,7 +3,7 @@ import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { DailyDiscipline } from "./daily-discipline";
 import Link from "next/link";
 
-import { fetchAnalytics } from "@/lib/analytics/actions";
+import { fetchAnalytics } from "@/lib/analytics/browser-reads";
 import { useAnalyticsFilters } from "@/lib/analytics/use-filters";
 import { chartBuckets, formatMoment } from "@/lib/analytics/contracts";
 import { AnalyticsControls } from "@/components/analytics/analytics-controls";

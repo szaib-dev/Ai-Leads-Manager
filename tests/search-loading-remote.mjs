@@ -22,7 +22,7 @@ try{
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
  const [a]=await Promise.all(contexts.map(c=>c.newPage()));
  await a.goto(base+'/dash');await expect(a.locator('.content-footer')).toHaveCount(0);
- await a.getByRole('button',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible();
+ await a.getByRole('link',{name:'Search all businesses',exact:true}).click();await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible();
  await a.route('**/rest/v1/rpc/workspace_leads',async route=>{await new Promise(resolve=>setTimeout(resolve,1200));await route.continue();});
  await a.getByRole('textbox',{name:'Search all businesses',exact:true}).fill('0317933');await expect(a.getByRole('status',{name:'Searching businesses',exact:true})).toBeVisible();
  await a.screenshot({path:'.local-test-output/search-loading-matched.png'});

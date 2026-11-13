@@ -24,7 +24,7 @@ try{
  for(const [label,p] of [['desktop',a],['mobile',b]]){
  p.on('request',r=>{if(!r.url().includes('/_next/static'))starts.set(r,performance.now());});
  p.on('response',r=>{const req=r.request(),start=starts.get(req);if(start!==undefined){const u=new URL(r.url());if(u.hostname.endsWith('supabase.co')||req.method()==='POST')trace.push({browser:label,path:u.pathname,method:req.method(),ms:Math.round(performance.now()-start),at:performance.now()});}});
- p.on('websocket',ws=>ws.on('framereceived',frame=>{if(label==='mobile'&&current&&typeof frame.payload==='string'&&frame.payload.includes('revision')&&frame.payload.includes('workspace_sync'))current.websocketAt ??= performance.now();}));
+ p.on('websocket',ws=>ws.on('framereceived',frame=>{if(label==='mobile'&&current&&typeof frame.payload==='string'&&frame.payload.includes('revision')&&frame.payload.includes('workspace_sync'))current.websocketAt ??= performance.now();if(label==='mobile'&&current&&typeof frame.payload==='string'&&frame.payload.includes('lead-change'))current.patchAt ??= performance.now();}));
  }
  const leads=await checked(sdk.from('leads').select('*').eq('owner_id',owner));let lead=leads.find(l=>l.business_name==='Phone Priority Fixture');
  const navigation=[];
@@ -43,7 +43,7 @@ try{
  for(const status of ['interested','new','interested','new']){
  current={status,start:performance.now()};const row=current;await checked(sdk.rpc('save_lead',{p_id:lead.id,p_expected:lead.updated_at,p_data:{status},p_action:'edit'}));row.responseAt=performance.now();
  await listB.getByText(status==='interested'?'Interested':'New',{exact:true}).waitFor();row.visibleAt=performance.now();
- timings.push({status,writeResponseMs:Math.round(row.responseAt-row.start),websocketMs:row.websocketAt?Math.round(row.websocketAt-row.start):null,visibleMs:Math.round(row.visibleAt-row.start)});
+ timings.push({status,writeResponseMs:Math.round(row.responseAt-row.start),patchMs:row.patchAt?Math.round(row.patchAt-row.start):null,websocketMs:row.websocketAt?Math.round(row.websocketAt-row.start):null,visibleMs:Math.round(row.visibleAt-row.start)});
  lead=(await checked(sdk.from('leads').select('*').eq('id',lead.id)))[0];current=null;
  }
  await listA.getByText('Phone Priority Fixture',{exact:true}).click();await a.getByRole('dialog').waitFor();await a.getByRole('dialog').getByRole('button',{name:'Delete lead',exact:true}).click();

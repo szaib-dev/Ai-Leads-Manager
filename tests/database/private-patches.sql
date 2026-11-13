@@ -1,0 +1,20 @@
+begin;
+insert into auth.users(id)values('99000000-0000-4000-8000-000000000032');
+select set_config('request.jwt.claim.sub','99000000-0000-4000-8000-000000000032',true);
+do $$declare p uuid;n integer;begin
+ p=public.manage_page(null,'Patch fixtures','',false);
+ insert into public.leads(page_id,business_name)select p,'Patch fixture '||i from generate_series(1,30)i;
+ perform set_config('folio.patch_count','0',true);
+ update public.leads set status='interested' where page_id=p;
+ select count(*) into n from realtime.messages where topic='lead-patches:'||auth.uid()::text;
+ if n<>20 then raise exception 'Unbounded/absent patches: %',n;end if;
+ if exists(select 1 from realtime.messages where payload ? 'business_name' or payload ? 'phone' or payload ? 'notes')then raise exception 'Private details in patch';end if;
+ insert into realtime.messages(extension,topic,payload)values('broadcast','lead-patches:98000000-0000-4000-8000-000000000032','{}');
+ execute 'set local role authenticated';
+ perform set_config('realtime.topic','lead-patches:'||auth.uid()::text,true);
+ if (select count(*) from realtime.messages)<>20 then raise exception 'Owner patch access failed';end if;
+ perform set_config('realtime.topic','lead-patches:98000000-0000-4000-8000-000000000032',true);
+ if exists(select 1 from realtime.messages)then raise exception 'Cross-owner patch access';end if;
+ raise notice 'PASS: bounded metadata patches, owner authorization and no private detail broadcasts';
+end $$;
+rollback;

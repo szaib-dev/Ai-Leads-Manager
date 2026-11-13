@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@/lib/workflows/use-query";
 import { saveLead } from "@/lib/leads/browser-mutations";
-import { fetchWhatsApp, saveWhatsApp } from "@/lib/leads/whatsapp-actions";
+import { saveWhatsApp } from "@/lib/leads/whatsapp-actions";
+import { fetchWhatsApp } from "@/lib/leads/browser-reads";
 import { fetchLeadRecord } from "@/lib/workflows/actions";
 import { useWorkspace } from "@/components/providers";
 import { PageHeader } from "@/components/shared/page-header";

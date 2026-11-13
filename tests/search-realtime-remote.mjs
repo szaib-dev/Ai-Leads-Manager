@@ -21,7 +21,7 @@ try{
  const contexts=await Promise.all([browser.newContext(),browser.newContext({viewport:{width:390,height:844}})]);
  for(const c of contexts)await c.addCookies([...jar].map(([name,value])=>({name,value,url:base})));
  const [a,b]=await Promise.all(contexts.map(c=>c.newPage()));
- await a.goto(base+'/dash');await a.getByRole('button',{name:'Search all businesses',exact:true}).click();
+ await a.goto(base+'/dash');await a.getByRole('link',{name:'Search all businesses',exact:true}).click();
  await expect(a.getByRole('heading',{name:'Who are you looking for?',exact:true})).toBeVisible({timeout:30000});
  await b.goto(base+'/dash/search');
  const inputA=a.getByRole('textbox',{name:'Search all businesses',exact:true}),inputB=b.getByRole('textbox',{name:'Search all businesses',exact:true});

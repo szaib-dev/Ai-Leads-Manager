@@ -19,3 +19,9 @@ export function replaceLead(rows: Lead[], lead: Lead) {
       : row,
   );
 }
+
+export type LeadPatch = Pick<Lead,"id"|"status"|"updatedAt"|"archived"|"deleted">;
+const patchListeners=new Set<(patch:LeadPatch)=>void>();
+export function publishLeadPatch(patch:LeadPatch){for(const listener of patchListeners)listener(patch);}
+export function subscribeLeadPatches(listener:(patch:LeadPatch)=>void){patchListeners.add(listener);return ()=>{patchListeners.delete(listener);};}
+export function patchLead(rows:Lead[],patch:LeadPatch){return rows.map(row=>row.id===patch.id && (!row.updatedAt || (patch.updatedAt && row.updatedAt<=patch.updatedAt)) ? {...row,...patch} : row);}

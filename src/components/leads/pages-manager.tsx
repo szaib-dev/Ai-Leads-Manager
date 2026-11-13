@@ -14,7 +14,8 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { shortDate } from "@/lib/utils";
-import { fetchCountries, createCountryPage, moveCountryPage } from "@/lib/leads/country-actions";
+import { createCountryPage,moveCountryPage } from "@/lib/leads/country-actions";
+import { fetchCountries } from "@/lib/leads/browser-reads";
 import { useQuery } from "@/lib/workflows/use-query";
 import { Select } from "@/components/ui/select";
 import { managePage } from "@/lib/leads/actions";

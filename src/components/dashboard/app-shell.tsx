@@ -38,7 +38,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "@/components/providers";
-import { ApplicationSettings } from "./settings";
+import dynamic from "next/dynamic";
+const ApplicationSettings = dynamic(()=>import("./settings").then(m=>m.ApplicationSettings));
 import { SignOutItem } from "@/components/auth/sign-out-item";
 const nav = [
   { href: "/dash", label: "Overview", icon: LayoutDashboard },
@@ -175,7 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="topbar-actions">
-              <Button variant="ghost" className="header-search-trigger" aria-label="Search all businesses" onClick={() => router.push("/dash/search")}><Search size={16} /><span>Search</span><kbd>/</kbd></Button>
+              <Button asChild variant="ghost" className="header-search-trigger"><Link href="/dash/search" prefetch aria-label="Search all businesses"><Search size={16}/><span>Search</span><kbd>/</kbd></Link></Button>
               <TodayCalls />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -285,7 +286,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="account-options"><button onClick={()=>{setProfileOpen(false);setSettingsOpen(true);}}><Settings2 size={19}/><span>Settings<small>Make Folio feel like you</small></span><ChevronRight size={16}/></button>
         <button disabled={signingOut} onClick={()=>startSignOut(async()=>{try{await logout();}catch{toast("Sign out could not complete. Please try again.");}})}><LogOut size={19}/><span>{signingOut?"Signing out…":"Log out"}<small>See you next time</small></span></button></div>
       </DialogContent></Dialog>
-      <ApplicationSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {settingsOpen && <ApplicationSettings open={settingsOpen} onOpenChange={setSettingsOpen} />}
     </div>
   );
 }

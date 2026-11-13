@@ -15,7 +15,7 @@ import { useQuery } from "@/lib/workflows/use-query";
 import { outcomeLabels } from "@/lib/leads/workflow-contracts";
 import styles from "./activity.module.css";
 import { fromDb } from "@/lib/leads/contracts";
-import { fetchActivityRange } from "@/lib/analytics/actions";
+import { fetchActivityRange } from "@/lib/analytics/browser-reads";
 import { useAnalyticsFilters } from "@/lib/analytics/use-filters";
 import { formatMoment } from "@/lib/analytics/contracts";
 import { AnalyticsControls } from "@/components/analytics/analytics-controls";

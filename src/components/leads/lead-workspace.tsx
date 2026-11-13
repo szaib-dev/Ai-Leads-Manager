@@ -1,7 +1,7 @@
 "use client";
 import { ManualLeadDialog } from "./manual-lead-dialog";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
-import { fetchCountries } from "@/lib/leads/country-actions";
+import { fetchCountries } from "@/lib/leads/browser-reads";
 import { useQuery } from "@/lib/workflows/use-query";
 import { publishLead } from "@/lib/realtime/lead-updates";
 import { ReimportBadge } from "./reimport-badge";
@@ -54,7 +54,8 @@ import { statuses, type Lead } from "@/types";
 import type { LeadFilters } from "@/lib/leads/contracts";
 import { saveLead } from "@/lib/leads/browser-mutations";
 import { useRemoteLeads, useMobileLayout } from "./use-remote-leads";
-import { CsvImportDialog } from "./csv-import-dialog";
+import dynamic from "next/dynamic";
+const CsvImportDialog=dynamic(()=>import("./csv-import-dialog").then(m=>m.CsvImportDialog));
 import { ImportHistory } from "./import-history";
 import { AttemptDialog } from "./attempt-dialog";
 import { SafeCallLink } from "./safe-call-link";

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
+import { publishLead } from "@/lib/realtime/lead-updates";
 import type { Lead } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
   deleteLeadSelection,
   undoLeadSelection,
   type SelectedLead,
-} from "@/lib/leads/selection-actions";
+} from "@/lib/leads/browser-selection";
 export function SelectionDelete({
   ids,
   leads = [],
@@ -155,8 +156,11 @@ export function SelectionDelete({
                 onClick={async () => {
                   setBusy(true);
                   setError("");
+                  const pendingLeads=leads.filter(lead=>rows.some(row=>row.id===lead.id));
                   try {
+                    pendingLeads.forEach(lead=>publishLead({...lead,deleted:true}));
                     const r = await deleteLeadSelection(request.current, rows);
+                    if(r.error)pendingLeads.forEach(publishLead);
                     uncertain.current = false;
                     if (r.error) {
                       needsFreshPreview.current = true;
@@ -172,6 +176,7 @@ export function SelectionDelete({
                       onChanged(rows.map((row) => row.id));
                     }
                   } catch {
+                    pendingLeads.forEach(publishLead);
                     uncertain.current = true;
                     setError(
                       "Could not confirm deletion. Close and reopen to retry with the same request.",

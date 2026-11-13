@@ -3,7 +3,7 @@
 import { Phone, PhoneCall } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { useWorkspace } from "@/components/providers";
-import { fetchAnalytics } from "@/lib/analytics/actions";
+import { fetchAnalytics } from "@/lib/analytics/browser-reads";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { subscribeCalendar } from "@/lib/analytics/use-filters";
 import { useQuery } from "@/lib/workflows/use-query";

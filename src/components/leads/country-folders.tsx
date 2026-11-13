@@ -3,7 +3,7 @@ import Link from "next/link";
 import { compareCountries } from "@/lib/leads/country-catalog";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@/lib/workflows/use-query";
-import { fetchCountries } from "@/lib/leads/country-actions";
+import { fetchCountries } from "@/lib/leads/browser-reads";
 import { useWorkspace } from "@/components/providers";
 export function CountryFolders(){
  const path=usePathname();

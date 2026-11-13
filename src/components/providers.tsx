@@ -1,4 +1,6 @@
 "use client";
+import { publishLeadPatch } from "@/lib/realtime/lead-updates";
+import { statusToDb } from "@/lib/leads/contracts";
 import { createWorkspaceQueryClient } from "@/lib/query/cache";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -10,7 +12,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fetchWorkspaceState, managePage } from "@/lib/leads/actions";
+import { managePage } from "@/lib/leads/actions";
+import { fetchWorkspaceState } from "@/lib/leads/browser-reads";
 import type { PageWithCounts } from "@/lib/leads/contracts";
 import { createClient } from "@/lib/supabase/browser";
 import { startWorkspaceSync, type SyncStatus } from "@/lib/realtime/controller";
@@ -91,7 +94,7 @@ export function Providers({
     initialCheckpoint = useRef(initialRevision);
   const refreshPages = useCallback<() => Promise<void>>(async () => {
     // Every revision refreshes visible records immediately, even while counts are busy.
-    const invalidation = queryClient.invalidateQueries({ queryKey: [ownerId] });
+    const invalidation = queryClient.invalidateQueries({ queryKey: [ownerId], predicate: query => !String(query.queryKey[3]).startsWith("application-settings") });
     if (flight.current) {
       again.current = true;
       await Promise.all([flight.current, invalidation]);
@@ -139,6 +142,11 @@ export function Providers({
     const sync = startWorkspaceSync(
       supabaseSyncTransport(client, ownerId, () =>
         setPrivacyEpoch((v) => v + 1),
+        process.env.NEXT_PUBLIC_PRIVATE_PATCHES === "true" ? patch=>{
+          const status=Object.keys(statusToDb).find(s=>statusToDb[s]===patch.status);
+          if(typeof patch.id==="string" && typeof patch.updated_at==="string" && status && typeof patch.archived==="boolean" && typeof patch.deleted==="boolean")
+            publishLeadPatch({id:patch.id,status:status as import("@/types").Lead["status"],updatedAt:patch.updated_at,archived:patch.archived,deleted:patch.deleted});
+        } : undefined,
       ),
       () => refreshPages(),
       (status) => {

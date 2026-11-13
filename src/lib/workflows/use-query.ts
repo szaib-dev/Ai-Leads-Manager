@@ -5,7 +5,8 @@ import type { ActionResult } from "@/lib/leads/contracts";
 import { useWorkspace } from "@/components/providers";
 export function useQuery<T>(
   queryKey: string,
-  load: () => Promise<ActionResult<T>>,
+  load: (signal?: AbortSignal) => Promise<ActionResult<T>>,
+  enabled = true,
 ) {
   const { ownerId, privacyEpoch, canFetch } = useWorkspace();
   const query = useCachedQuery({
@@ -15,9 +16,9 @@ export function useQuery<T>(
       "workflow",
       queryKey,
     ),
-    enabled: canFetch,
+    enabled: canFetch && enabled,
     queryFn: async ({ signal }) => {
-      const result = await load();
+      const result = await load(signal);
       signal.throwIfAborted();
       if (result.error) throw new Error(result.error);
       if (result.data === undefined)
@@ -30,7 +31,7 @@ export function useQuery<T>(
     error: canFetch
       ? query.data === undefined ? query.error?.message : undefined
       : "You are offline. Reconnect to load your workspace.",
-    loading: canFetch && query.isPending,
+    loading: canFetch && enabled && query.isPending,
     retry: () => {
       if (canFetch) void query.refetch();
     },

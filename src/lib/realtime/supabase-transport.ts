@@ -5,6 +5,7 @@ export function supabaseSyncTransport(
   client: SupabaseClient<Database>,
   ownerId: string,
   onPrivacyChange?: () => void,
+  onLeadPatch?: (patch:Record<string,unknown>)=>void,
 ): SyncTransport {
   let privacyRevision: number | undefined;
   function privacy(row: Record<string, unknown>) {
@@ -26,7 +27,8 @@ export function supabaseSyncTransport(
     },
     connect(onRevision, onStatus) {
       let stopped = false,
-        channel: RealtimeChannel | null = null;
+        channel: RealtimeChannel | null = null,
+        patches: RealtimeChannel | null = null;
       function revision(payload: { new: Record<string, unknown> }) {
         if (!stopped && payload.new.owner_id === ownerId) {
           privacy(payload.new);
@@ -41,11 +43,16 @@ export function supabaseSyncTransport(
             void client.removeChannel(channel);
             channel = null;
           }
+          if(patches){void client.removeChannel(patches);patches=null;}
           onStatus("signed-out");
           return;
         }
         await client.realtime.setAuth(token);
         if (stopped || channel) return;
+        if(onLeadPatch && !patches) patches=client.channel(`lead-patches:${ownerId}`,{config:{private:true}})
+          .on("broadcast",{event:"lead-change"},message=>{
+            if(!stopped && message.payload?.owner_id===ownerId)onLeadPatch(message.payload);
+          }).subscribe();
         channel = client
           .channel(`workspace:${ownerId}`, {
             config: { postgres_changes_options: { wait: true } },
@@ -94,6 +101,7 @@ export function supabaseSyncTransport(
               onStatus("stale"),
             );
           else {
+            if(patches){void client.removeChannel(patches);patches=null;}
             onStatus("signed-out");
             if (channel) {
               void client.removeChannel(channel);
@@ -118,6 +126,8 @@ export function supabaseSyncTransport(
       return () => {
         stopped = true;
         subscription.unsubscribe();
+        if(patches)void client.removeChannel(patches);
+        patches=null;
         if (channel) void client.removeChannel(channel);
         channel = null;
       };

@@ -22,7 +22,7 @@ export function ApplicationSettings({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const q = useQuery(`application-settings:${open}`, () => importPreferences());
+  const q = useQuery("application-settings", () => importPreferences(), open);
   const [draft, setDraft] = useState<ImportMode>(),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");

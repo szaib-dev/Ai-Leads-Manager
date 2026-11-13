@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers";
-import { replaceLead, subscribeLeadChanges } from "@/lib/realtime/lead-updates";
+import { patchLead, subscribeLeadPatches, replaceLead, subscribeLeadChanges } from "@/lib/realtime/lead-updates";
 import { createClient } from "@/lib/supabase/browser";
 import { fromDb, statusToDb } from "@/lib/leads/contracts";
 import type { LeadFilters, LeadResult } from "@/lib/leads/contracts";
@@ -69,6 +69,9 @@ export function useRemoteLeads(
       }),
     [key, enabled, canFetch, client],
   );
+  useEffect(()=>subscribeLeadPatches(patch=>{
+    if(enabled && canFetch)client.setQueryData<LeadResult>(JSON.parse(key),data=>data?{...data,rows:patchLead(data.rows,patch)}:data);
+  }),[key,enabled,canFetch,client]);
   const state = {
     key,
     data: query.data || empty,
@@ -83,6 +86,7 @@ export function useRemoteLeads(
             rows: state.data.rows.filter(
               (row) =>
                 !row.deleted &&
+                (filters.status === "all" || filters.status.startsWith("attempt_") || row.status === filters.status) &&
                 (mode === "search" || (mode === "archive" ? row.archived : !row.archived)) &&
                 (mode !== "page" ||
                   row.status !== "Not Interested") &&
