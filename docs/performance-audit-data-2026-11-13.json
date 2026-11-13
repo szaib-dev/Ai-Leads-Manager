@@ -1,0 +1,485 @@
+{
+  "at": "2026-11-13T08:04:42.041Z",
+  "base": "https://ai-leads-manager-burak.vercel.app",
+  "navigation": [
+    {
+      "path": "/dash/pages",
+      "documentToHeadingMs": 40336
+    },
+    {
+      "path": "/dash/pages/:collection",
+      "documentToHeadingMs": 9279
+    },
+    {
+      "path": "/dash/attempts",
+      "documentToHeadingMs": 2356
+    },
+    {
+      "path": "/dash/search",
+      "documentToHeadingMs": 2222
+    },
+    {
+      "path": "/dash/pages/:collection",
+      "documentToHeadingMs": 1869
+    },
+    {
+      "type": "clientLink",
+      "path": "/dash",
+      "clickToHeadingMs": 1526
+    },
+    {
+      "type": "clientLink",
+      "path": "/dash/attempts",
+      "clickToHeadingMs": 1105
+    },
+    {
+      "type": "clientLink",
+      "path": "/dash/pages/:collection",
+      "clickToHeadingMs": 993
+    }
+  ],
+  "timings": [
+    {
+      "status": "interested",
+      "writeResponseMs": 641,
+      "websocketMs": 922,
+      "visibleMs": 1498
+    },
+    {
+      "status": "new",
+      "writeResponseMs": 351,
+      "websocketMs": 808,
+      "visibleMs": 1156
+    },
+    {
+      "status": "interested",
+      "writeResponseMs": 392,
+      "websocketMs": 494,
+      "visibleMs": 1239
+    },
+    {
+      "status": "new",
+      "writeResponseMs": 220,
+      "websocketMs": 667,
+      "visibleMs": 1068
+    }
+  ],
+  "deletionMs": 1666,
+  "reads": [
+    {
+      "label": "workspace_leads_2_records",
+      "samplesMs": [
+        248,
+        218,
+        235
+      ]
+    },
+    {
+      "label": "workspace_state_2_records",
+      "samplesMs": [
+        224,
+        245,
+        222
+      ]
+    },
+    {
+      "label": "workspace_leads_1002_records",
+      "samplesMs": [
+        321,
+        353,
+        331
+      ]
+    },
+    {
+      "label": "workspace_state_1002_records",
+      "samplesMs": [
+        666,
+        234,
+        228
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "browser": "desktop",
+      "path": "/dash/pages",
+      "method": "POST",
+      "ms": 17116
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/pages",
+      "method": "POST",
+      "ms": 1365
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/pages",
+      "method": "POST",
+      "ms": 9370
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 10219
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 645
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 254
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 571
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 214
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 221
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 225
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 216
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/pages/:fixture-id",
+      "method": "POST",
+      "ms": 1415
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash",
+      "method": "POST",
+      "ms": 1557
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 314
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/attempts",
+      "method": "POST",
+      "ms": 1307
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 257
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/pages/:fixture-id",
+      "method": "POST",
+      "ms": 1105
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 178
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 221
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 368
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 770
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 546
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 251
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 256
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 275
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 1328
+    },
+    {
+      "browser": "mobile",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 1340
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 243
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 254
+    },
+    {
+      "browser": "mobile",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 865
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 1197
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 243
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 246
+    },
+    {
+      "browser": "mobile",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 931
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/workspace_sync",
+      "method": "GET",
+      "ms": 217
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 1046
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 232
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 244
+    },
+    {
+      "browser": "mobile",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 900
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 1064
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/save_lead",
+      "method": "POST",
+      "ms": 289
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 877
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 221
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 227
+    },
+    {
+      "browser": "desktop",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 866
+    },
+    {
+      "browser": "mobile",
+      "path": "/dash/search",
+      "method": "POST",
+      "ms": 868
+    },
+    {
+      "browser": "desktop",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 355
+    },
+    {
+      "browser": "mobile",
+      "path": "/rest/v1/rpc/workspace_leads",
+      "method": "POST",
+      "ms": 353
+    }
+  ],
+  "resources": [
+    {
+      "url": "/_next/static/immutable/chunks/3ev1avsl3_mxd.js",
+      "transferBytes": 2423,
+      "decodedBytes": 5600
+    },
+    {
+      "url": "/_next/static/immutable/chunks/1rcukykq0we6d.js",
+      "transferBytes": 9164,
+      "decodedBytes": 33902
+    },
+    {
+      "url": "/_next/static/immutable/chunks/2toipa3xhcjc2.js",
+      "transferBytes": 37061,
+      "decodedBytes": 132360
+    },
+    {
+      "url": "/_next/static/immutable/chunks/0fd2upw_99mq2.js",
+      "transferBytes": 73536,
+      "decodedBytes": 229544
+    },
+    {
+      "url": "/_next/static/immutable/chunks/1jlnn50rxkcum.js",
+      "transferBytes": 10577,
+      "decodedBytes": 32405
+    },
+    {
+      "url": "/_next/static/immutable/chunks/turbopack-3xd-7z66s-4wg.js",
+      "transferBytes": 4389,
+      "decodedBytes": 9974
+    },
+    {
+      "url": "/_next/static/immutable/chunks/0iqy_d9nl-azy.js",
+      "transferBytes": 5386,
+      "decodedBytes": 17486
+    },
+    {
+      "url": "/_next/static/immutable/chunks/2_v6da9v7s7bh.js",
+      "transferBytes": 3732,
+      "decodedBytes": 7862
+    },
+    {
+      "url": "/_next/static/immutable/chunks/2lsqye_37elar.js",
+      "transferBytes": 6723,
+      "decodedBytes": 18279
+    },
+    {
+      "url": "/_next/static/immutable/chunks/0fn5pq4m4_5_t.js",
+      "transferBytes": 11132,
+      "decodedBytes": 32566
+    },
+    {
+      "url": "/_next/static/immutable/chunks/2dzwzpjzve1r7.js",
+      "transferBytes": 2063,
+      "decodedBytes": 3435
+    },
+    {
+      "url": "/_next/static/immutable/chunks/1-lc1gpspdchs.js",
+      "transferBytes": 107019,
+      "decodedBytes": 368686
+    },
+    {
+      "url": "/_next/static/immutable/chunks/00t_16louuepr.js",
+      "transferBytes": 14646,
+      "decodedBytes": 40233
+    },
+    {
+      "url": "/_next/static/immutable/chunks/0s_hzjdqvnt9y.js",
+      "transferBytes": 3887,
+      "decodedBytes": 8735
+    },
+    {
+      "url": "/_next/static/immutable/chunks/3gthnw12pf67_.js",
+      "transferBytes": 8346,
+      "decodedBytes": 22221
+    },
+    {
+      "url": "/_next/static/immutable/chunks/3ts5ulbnyf7ia.js",
+      "transferBytes": 9674,
+      "decodedBytes": 27812
+    },
+    {
+      "url": "/_next/static/immutable/chunks/2w87g2q62ts7a.js",
+      "transferBytes": 33520,
+      "decodedBytes": 111928
+    },
+    {
+      "url": "/_next/static/immutable/chunks/20yj0h-y91des.js",
+      "transferBytes": 765,
+      "decodedBytes": 465
+    }
+  ],
+  "limits": "Single runner, two independent Chromium contexts; not physical phones; HTTP timings include network, observed visibility excludes input latency; three RPC samples per scale; synthetic owner only."
+}

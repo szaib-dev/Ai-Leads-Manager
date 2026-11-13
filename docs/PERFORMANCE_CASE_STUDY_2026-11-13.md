@@ -21,7 +21,35 @@ The retained earlier production report, `tests/search-realtime-remote.mjs` / `.l
 
 These are earlier fixture observations, not fresh measurements of this audit release, physical-phone measurements, a p95, or pure websocket delivery times. They include write/network/refetch/render work. Your reported approximately two seconds on another phone is plausible but has not been independently reproduced on those physical devices.
 
-Fresh instrumented profiling was attempted. One run reached the scale-import stage but failed due to an omitted RPC argument; that harness was corrected. A subsequent run encountered browser `ERR_NETWORK_IO_SUSPENDED`. Further runs and database-plan inspection were blocked when the Supabase administrative-key and SQL endpoints returned HTTP 403. All provisioned fixture accounts were removed in finally cleanup. No successful new navigation distribution, SQL execution-time breakdown, scale comparison, or p95 is claimed. The reproducible harness is `tests/performance-audit-remote.mjs`; its intended JSON output must not be treated as available until a complete run succeeds.
+### Fresh completed profiling run
+
+After access was restored, `tests/performance-audit-remote.mjs` completed successfully against production using two independent headless Edge/Chromium contexts, including a 390px mobile viewport. The run used a disposable owner, initial three-record import, single-record deletion, then an additional 1,000 synthetic records. The account and records were removed afterward. Sanitized raw output: `docs/performance-audit-data-2026-11-13.json` (original local output: `.local-test-output/performance-audit.json`).
+
+| Status write | HTTP write response | Revision received on other browser | Updated row visible there |
+|---|---:|---:|---:|
+| Interested | 641 ms | 922 ms | 1,498 ms |
+| New | 351 ms | 808 ms | 1,156 ms |
+| Interested | 392 ms | 494 ms | 1,239 ms |
+| New | 220 ms | 667 ms | 1,068 ms |
+
+All three timestamps are relative to starting the mutation, not durations to add together. Median total visibility was approximately 1,198ms. Median interval from websocket receipt to visible updated data was approximately 489ms: this confirms a material post-event reread/render cost. Browser automation observation contributes to the visible-time metric; it is not a physical display-paint trace. Confirmed UI deletion to second-browser disappearance measured 1,666ms in this run.
+
+Client Link navigation to a visible heading measured 1,526ms for Overview, 1,105ms for Attempts, and 993ms returning to the collection. These are one sample each; they do not establish a p95. Hard navigations measured 40,336ms on initial country entry, 9,279ms on the next collection entry, and 1,869–2,356ms on later entries. The 40-second observation is a severe isolated outlier, not a claim that every navigation takes 40 seconds. The same run captured a 17,116ms Server Action response and a 10,219ms direct workspace revision read. That mixed-path stall means network/service cold behavior must be traced; attributing it solely to Vercel compute, region distance, or SQL would be unsupported.
+
+Direct authenticated RPC response samples (including network, not pure SQL):
+
+| Read | Samples | Median |
+|---|---|---:|
+| Lead list, 2 surviving records | 248, 218, 235ms | 235ms |
+| Workspace state, 2 surviving records | 224, 245, 222ms | 224ms |
+| Lead list, 1,002 surviving records | 321, 353, 331ms | 331ms |
+| Workspace state, 1,002 surviving records | 666, 234, 228ms | 234ms |
+
+The lead list still returns at most 15 rows. This small scale experiment does not demonstrate a multi-second SQL bottleneck at 1,002 records. It also does not validate 10k/50k owners or simultaneous imports. The scale import itself was outside these read timings.
+
+Across the complete multi-route/multi-mutation run, the browser traces captured 48 relevant responses: 16 lead-list RPC responses, 13 revision reads, 18 dashboard-route POST responses, and one UI mutation RPC response. This is aggregate run activity, not 48 requests per mutation. The mobile search document observed 18 JS resources totaling approximately 1.10MB decoded and 344KB transferred; no main-thread profile establishes that JS is the dominant cause.
+
+A metadata SQL query confirmed the `pg_stat_statements` extension schema, but the subsequent aggregate-statistics query again returned 403. No production SQL execution plan, lock wait distribution, or pg_stat_statements timing is claimed. Earlier attempts also had one corrected missing scale-import argument and a browser network-suspension failure; only the completed run above supplies fresh measurements. These limitations remain important despite the successful browser run.
 
 ## 1. Cross-region server reads — confirmed, high priority
 
@@ -105,7 +133,7 @@ Selected deletion is different: `SelectionDelete` may preview missing selected r
 
 ## 8. SQL enrichment and owner-wide locks are scaling candidates — not proven primary bottlenecks
 
-`workspace_leads` computes counts and summaries, joins attempts/followups, obtains latest notes and suppression state, and performs substring/normalized-phone matching. Several references to the filtered result can cause substantial work before the final 15-row output. `workspace_pages()` aggregates across collections on each counts refresh. Phone normalization is computed in search expressions. None of this is automatically slow at today's data size, and there is no successful fresh EXPLAIN result in this audit.
+`workspace_leads` computes counts and summaries, joins attempts/followups, obtains latest notes and suppression state, and performs substring/normalized-phone matching. Several references to the filtered result can cause substantial work before the final 15-row output. `workspace_pages()` aggregates across collections on each counts refresh. Phone normalization is computed in search expressions. None of this is automatically slow at today's data size, and no production EXPLAIN result was available. The direct-RPC scale samples above do not suggest multi-second query execution at 1,002 records.
 
 Several workflow paths take an owner-scoped advisory transaction lock. It prevents unsafe concurrent operations, but can serialize writes for one owner during imports or other long transactions. Actual lock-wait time is not measured here. Do not replace it with per-lead locks without reviewing cross-page Maps uniqueness and transactional invariants.
 
