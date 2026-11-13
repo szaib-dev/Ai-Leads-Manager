@@ -176,7 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="topbar-actions">
-              <Button asChild variant="ghost" className="header-search-trigger"><Link href="/dash/search" prefetch aria-label="Search all businesses"><Search size={16}/><span>Search</span><kbd>/</kbd></Link></Button>
+              <Button asChild variant="ghost" className="header-search-trigger"><Link href="/dash/search" prefetch aria-label="Search all businesses"><Search size={16}/><span>Search</span></Link></Button>
               <TodayCalls />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

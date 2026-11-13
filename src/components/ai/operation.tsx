@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { AiResult } from "@/lib/ai/assistant-contracts";
 import styles from "./workspace.module.css";
 import { RelevanceEvidence } from "./relevance-evidence";
+import { CheckCircle2, CircleDot, Database, Search } from "lucide-react";
 
 export function Operation({
   result,
@@ -30,11 +31,11 @@ export function Operation({
   return (
     <section className={styles.operation} aria-label="Database operation">
       <div className={styles.operationHeading}>
-        <strong>
-          {result.action.replaceAll("_", " ")} · {result.count.toLocaleString()}{" "}
-          records
-        </strong>
-        <span>{result.status}</span>
+        <div className={styles.operationTitle}>
+          <span className={styles.operationIcon}>{result.action === "search" ? <Search size={18}/> : <Database size={18}/>}</span>
+          <div><strong>{result.action.replaceAll("_", " ")}</strong><small>{result.count.toLocaleString()} {result.count === 1 ? "record" : "records"}{result.status === "planned" ? " matched" : result.action === "search" ? " found" : " changed"}</small></div>
+        </div>
+        <span className={styles.operationState}>{result.status === "completed" ? <CheckCircle2 size={13}/> : <CircleDot size={13}/>} {result.status === "planned" ? "Review needed" : result.status}</span>
       </div>
       <p>{result.summary}</p>
       {result.scope && (
@@ -111,7 +112,7 @@ export function Operation({
           </div>
         </>
       )}
-      {result.status === "completed" &&
+      {result.status === "completed" && result.count > 0 &&
         [
           "edit",
           "append_notes",

@@ -77,6 +77,19 @@ export async function startWorkspaceFixture() {
         (l) => l.id === (body.p_id ?? body.p_lead ?? body.p_lead_id),
       );
       if(name === "country_structure")return send({countries:[],assignments:pages.map(p=>({id:p.id,country_id:null}))});
+      if(name === "workspace_followups") {
+        const category = f => f.completed_at ? "completed" : f.scheduled_date < body.p_day ? "overdue" : f.scheduled_date === body.p_day ? "today" : "upcoming";
+        const all = apiFollowups.filter(f => !f.cancelled_at && !leads.find(l=>l.id===f.lead_id)?.deleted_at).map(f=>({...f,category:category(f),lead:leads.find(l=>l.id===f.lead_id)}));
+        const rows=all.filter(f=>body.p_category==="all" || f.category===body.p_category);
+        return send({rows:rows.slice(body.p_offset,body.p_offset+body.p_limit),total:rows.length,counts:Object.fromEntries(["all","today","overdue","upcoming","completed"].map(c=>[c,c==="all"?all.length:all.filter(f=>f.category===c).length]))});
+      }
+      if(name === "manage_followup") {
+        const task=apiFollowups.find(f=>f.id===body.p_id), lead=leads.find(l=>l.id===body.p_lead);
+        if(!task || !lead || task.cancelled_at) {res.writeHead(400);return send({message:"Task unavailable"});}
+        if(body.p_action==="cancel")task.cancelled_at=now();
+        if(body.p_action==="complete")task.completed_at=now();
+        lead.status="interested";lead.updated_at=now();revision++;return send(randomUUID());
+      }
       if(name === "manage_whatsapp"){
         if(!row){res.writeHead(400);return send({message:"Lead unavailable"});}
         Object.assign(row,{status:"whatsapp",whatsapp_status:body.p_status,whatsapp_notes:body.p_notes,whatsapp_last_interaction:body.p_date,updated_at:now()});revision++;return send(true);
@@ -263,7 +276,7 @@ export async function startWorkspaceFixture() {
           pages: pages.map((p) => ({
             ...p,
             lead_count: leads.filter((l) => l.page_id === p.id).length,
-            new_count: 0,
+            new_count: leads.filter(l=>l.page_id===p.id && l.status==="new" && !l.deleted_at).length,
             contacted_count: 0,
             followup_count: 0,
           })),
@@ -271,6 +284,7 @@ export async function startWorkspaceFixture() {
       if (name === "workspace_leads") {
         let list = leads.filter(
           (l) =>
+            !l.deleted_at &&
             (!body.p_page || l.page_id === body.p_page) &&
             (!body.p_search ||
               l.business_name
@@ -299,6 +313,8 @@ export async function startWorkspaceFixture() {
       if (name === "save_lead") {
         if (!row) return send(null);
         Object.assign(row, body.p_data, { updated_at: now() });
+        if(body.p_action==="delete")row.deleted_at=now();
+        if(body.p_data?.status && !["follow_up","meeting_booked"].includes(body.p_data.status))for(const f of apiFollowups.filter(f=>f.lead_id===row.id&&!f.completed_at))f.cancelled_at=now();
         revision++;
         return send(randomUUID());
       }
@@ -327,6 +343,9 @@ export async function startWorkspaceFixture() {
           total: calls.length,
           summary: {
             attempts: 1,
+            businesses_contacted: 1,
+            unanswered: 1,
+            voicemails: 0,
             answered: 0,
             interested: 0,
             rejected: 0,
@@ -434,6 +453,25 @@ export async function startWorkspaceFixture() {
     key: "sb_publishable_browser_fixture",
     adminKey: "sb_secret_browser_fixture",
     close: () => new Promise((r) => server.close(r)),
+    seedDesignFixtures() {
+      const day=now().slice(0,10);
+      for(const name of ["Salons", "Dental clinics", "Skin care"]) {
+        const id=randomUUID();pages.push({id,name,description:"Design QA",created_at:now()});
+        leads.push({id:randomUUID(),owner_id:user.id,page_id:id,business_name:`${name} new fixture`,phone:"+12025550123",status:"new",country:"Canada",location:"Toronto",notes:"",attempts:0,failed_attempts:0,updated_at:now(),created_at:now(),archived_at:null,deleted_at:null});
+      }
+      for(let i=0;i<5;i++) {
+        const lead={...leads[0],id:randomUUID(),business_name:`Follow-up fixture ${i+1}`,status:"follow_up"};leads.push(lead);
+        apiFollowups.push({id:randomUUID(),owner_id:user.id,lead_id:lead.id,scheduled_date:day,scheduled_time:"14:30:00",notes:"Discuss their website and arrange the next conversation.",updated_at:now(),completed_at:null,cancelled_at:null});
+      }
+      const chatId=randomUUID(), opId=randomUUID();
+      chats.push({id:chatId,owner_id:user.id,title:"Design verification",scope_page_id:null,updated_at:now()});
+      operations.push({id:opId,owner_id:user.id,action:"edit",status:"completed",mode:"strict",count:0,requiresApproval:false,expiresAt:now(),page:1,totalPages:1,rows:[],summary:"No matching records needed changes.",scope:{pageId:pages[0].id,importId:null,destinationId:null}});
+      messages.push({id:randomUUID(),owner_id:user.id,conversation_id:chatId,role:"assistant",content:"I checked your leads. No matching records needed changes.",status:"completed",error:null,reply_to:null,operation_id:opId,created_at:now()});
+      const searchId=randomUUID();
+      operations.push({id:searchId,owner_id:user.id,action:"search",status:"completed",mode:"strict",count:3,requiresApproval:false,expiresAt:now(),page:1,totalPages:1,rows:leads.slice(0,3).map(l=>({...l,page_name:"Salons"})),summary:"Three businesses match your search."});
+      messages.push({id:randomUUID(),owner_id:user.id,conversation_id:chatId,role:"assistant",content:"Here are the matching businesses.",status:"completed",error:null,reply_to:null,operation_id:searchId,created_at:now()});
+      return {pageId:pages[0].id,chatId};
+    },
     seedConversation(first) {
       chats.push({
         id: first.conversationId,

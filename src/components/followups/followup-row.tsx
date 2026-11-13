@@ -6,6 +6,8 @@ import {
   ChevronDown,
   Phone,
   PhoneOff,
+  Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -31,6 +33,9 @@ interface Props {
   onOutcome: () => void;
   onReschedule: () => void;
   onComplete: () => void;
+  onStatus: () => void;
+  onRemove: () => void;
+  onDelete: () => void;
   busy: boolean;
 }
 export function FollowupRow({
@@ -42,6 +47,9 @@ export function FollowupRow({
   onOutcome,
   onReschedule,
   onComplete,
+  onStatus,
+  onRemove,
+  onDelete,
   busy,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -110,7 +118,7 @@ export function FollowupRow({
             )}
           </>
         ) : (
-          <StatusBadge status={lead.status} />
+          <button className={styles.statusButton} onClick={onStatus} disabled={busy} aria-label={`Change status for ${lead.name}`}><StatusBadge status={lead.status}/><ChevronDown size={12}/></button>
         )}
       </div>
       <div className={styles.actions}>
@@ -151,7 +159,7 @@ export function FollowupRow({
                 aria-label={`Follow-up actions for ${lead.name}`}
                 disabled={busy}
               >
-                <CalendarClock size={16} />
+                <MoreHorizontal size={18} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -161,6 +169,9 @@ export function FollowupRow({
               <DropdownMenuItem onSelect={onComplete}>
                 Mark completed · no call recorded
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onStatus}>Change lead status</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onRemove}>Remove follow-up</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onDelete}>Delete lead…</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
@@ -178,6 +189,8 @@ export function FollowupRow({
             {task.completed && <span>Schedule again</span>}
           </Button>
         )}
+        {!task.completed && <Button variant="ghost" size="icon" disabled={busy} aria-label={`Remove follow-up for ${lead.name}`} onClick={onRemove}><Trash2 size={16}/></Button>}
+        {task.completed && <><Button variant="ghost" size="icon" disabled={busy} aria-label={`Change status for ${lead.name}`} onClick={onStatus}><ChevronDown size={16}/></Button><Button variant="ghost" size="icon" disabled={busy} aria-label={`Delete lead ${lead.name}`} onClick={onDelete}><Trash2 size={16}/></Button></>}
       </div>
     </article>
   );

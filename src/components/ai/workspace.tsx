@@ -150,6 +150,7 @@ function Workspace({
   const history = useQuery("chat-history", () => conversations());
   const thread = useQuery(`chat-thread:${loadId ?? ""}`, () =>
     loadId ? conversationThread(loadId) : Promise.resolve({ data: undefined }),
+    !!loadId,
   );
   const settings = useQuery("ai-workspace-settings", () => assistantState());
   const messages = [...older, ...(local ?? thread.data?.messages ?? [])];

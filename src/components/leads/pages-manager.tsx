@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SortableGrid } from "@/components/shared/sortable-grid";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { useState } from "react";
 import { ArrowUpRight, FolderPlus, Plus, Search } from "lucide-react";
@@ -79,11 +80,12 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
         </label>
       </div>
       <div style={{maxWidth:200,marginBottom:16}}><Select aria-label="Filter lead pages" value={pageFilter} onValueChange={setPageFilter}><option value="all">All pages</option><option value="active">With leads</option><option value="empty">Empty pages</option></Select></div>
-      <div className="page-grid">
-        {filtered.map((p) => {
+      <p className="small muted" style={{marginBottom:16}}>Drag a handle to arrange your pages. Order is saved in this browser.</p>
+      <SortableGrid items={filtered} storageKey={`pages:${countryId || "all"}`} className="page-grid" itemClassName="page-card collection-card" renderItem={(p, handle) => {
           const contacted = p.contactedCount;
           return (
-            <div key={p.id} className="page-card collection-card">
+            <>
+              <div className="collection-drag-handle">{handle}</div>
               <Link href={`/dash/pages/${p.id}`} style={{ display: "block" }}>
                 <div className="page-card-top">
                   <span className={`country-icon ${p.color}`}>{p.flag}</span>
@@ -134,9 +136,9 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
                   Delete
                 </Button>
               </div>
-            </div>
+            </>
           );
-        })}
+        }}>
         {!search && (
           <button
             className="new-page-card"
@@ -158,7 +160,7 @@ export function PagesManager({countryId,countryName,pageIds}:{countryId?:string;
             </span>
           </button>
         )}
-      </div>
+      </SortableGrid>
       {filtered.length === 0 && (
         <EmptyState
           title={search ? "No pages match your search" : "Create your first lead page"}

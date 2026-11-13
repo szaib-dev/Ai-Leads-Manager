@@ -16,6 +16,10 @@ import { LeadDetails } from "@/components/leads/lead-details";
 import { AttemptDialog } from "@/components/leads/attempt-dialog";
 import { FollowupRow } from "@/components/followups/followup-row";
 import { RescheduleDialog } from "@/components/followups/reschedule-dialog";
+import { FollowupStatusDialog } from "@/components/followups/status-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { saveLead } from "@/lib/leads/browser-mutations";
+import { publishLead } from "@/lib/realtime/lead-updates";
 import { dayInZone } from "@/lib/analytics/contracts";
 import { subscribeCalendar } from "@/lib/analytics/use-filters";
 import { changeFollowup } from "@/lib/workflows/actions";
@@ -61,6 +65,9 @@ export function Followups() {
   const [selectedId, setSelectedId] = useLiveSelection<string | null>(null);
   const [attemptId, setAttemptId] = useLiveSelection<string | null>(null);
   const [rescheduleId, setRescheduleId] = useLiveSelection<string | null>(null);
+  const [statusId, setStatusId] = useLiveSelection<string | null>(null);
+  const [remove, setRemove] = useLiveSelection<{ id: string; lead: boolean } | null>(null);
+  const [removeError, setRemoveError] = useState("");
   const q = useQuery(JSON.stringify(["followups",today, tab, sort, page]), () =>
     fetchFollowups(today, tab, sort, page),
   );
@@ -83,6 +90,8 @@ export function Followups() {
   const selected = selectedTask?.lead;
   const attemptTask = tasks.find((t) => t.id === attemptId);
   const rescheduleTask = tasks.find((t) => t.id === rescheduleId);
+  const statusTask = tasks.find(t => t.id === statusId);
+  const removeTask = tasks.find(t => t.id === remove?.id);
   async function complete(task: FollowupEntry) {
     setBusy(true);
     setOptimisticComplete(task.id);
@@ -118,7 +127,7 @@ export function Followups() {
       <header className={styles.header}>
         <div>
           <h1>Follow-ups</h1>
-          <p>Keep track of your upcoming conversations.</p>
+          <p>Your next conversations, thoughtfully organized.</p>
         </div>
         <span className={styles.sampleDate}>
           <CalendarDays size={14} />
@@ -128,7 +137,7 @@ export function Followups() {
             day: "numeric",
             year: "numeric",
           })}
-          <span>{timezone} · dates as entered</span>
+          <span>{timezone}</span>
         </span>
       </header>
       <dl className={styles.summary}>
@@ -144,6 +153,7 @@ export function Followups() {
             >
               <dt>{category.summary}</dt>
               <dd>{q.loading || !q.data ? "—" : counts[category.id]}</dd>
+              <button aria-label={`Show ${category.label.toLowerCase()} follow-ups`} onClick={() => { setTab(category.id); setPage(1); }}>View {category.label.toLowerCase()} →</button>
             </div>
           ),
         )}
@@ -252,6 +262,9 @@ export function Followups() {
                           onOutcome={() => setAttemptId(task.id)}
                           onReschedule={() => setRescheduleId(task.id)}
                           onComplete={() => void complete(task)}
+                          onStatus={() => setStatusId(task.id)}
+                          onRemove={() => { setRemoveError(""); setRemove({id:task.id, lead:false}); }}
+                          onDelete={() => { setRemoveError(""); setRemove({id:task.id, lead:true}); }}
                           busy={busy}
                         />
                       );
@@ -304,7 +317,6 @@ export function Followups() {
             ? " across all categories"
             : ` · ${categories.find((category) => category.id === tab)?.label}`}
         </span>
-        <span>Saved in Supabase · dates as entered</span>
       </div>
       <div className="dialog-actions">
         <Button
@@ -343,6 +355,21 @@ export function Followups() {
           }}
         />
       )}
+      {statusTask && <FollowupStatusDialog key={statusTask.id} lead={statusTask.lead} date={statusTask.date} time={statusTask.time} onClose={() => setStatusId(null)} onSaved={() => { setStatusId(null); q.retry(); void refreshPages(); toast("Lead status updated"); }}/> }
+      <Dialog open={!!removeTask} onOpenChange={open => { if (!open && !busy) setRemove(null); }}><DialogContent onPointerDownOutside={e => { if (busy) e.preventDefault(); }} onEscapeKeyDown={e => { if (busy) e.preventDefault(); }}>
+        <DialogTitle>{remove?.lead ? "Delete this lead?" : "Remove this follow-up?"}</DialogTitle>
+        <DialogDescription>{removeTask?.lead.name}{remove?.lead ? " will be removed from your lead lists and its reminders cancelled. Historical records are retained." : " will return to Interested. Only this pending reminder is removed; the lead and its history stay available."}</DialogDescription>
+        {removeError && <p role="alert">{removeError}</p>}
+        <div className="dialog-actions"><Button variant="outline" disabled={busy} onClick={() => setRemove(null)}>Keep it</Button><Button disabled={busy} onClick={async () => {
+          if (!removeTask || busy) return; setBusy(true); setRemoveError("");
+          try {
+            const result = remove?.lead ? await saveLead({id:removeTask.lead.id, expected:removeTask.lead.updatedAt!, data:{}, action:"delete"}) : await changeFollowup({leadId:removeTask.lead.id, expected:removeTask.lead.updatedAt!, requestId:crypto.randomUUID(), id:removeTask.id, action:"cancel"});
+            if (result.error) { setRemoveError(result.error); return; }
+            if (remove?.lead) publishLead({...removeTask.lead, deleted:true});
+            setRemove(null); q.retry(); void refreshPages(); toast(remove?.lead ? "Lead deleted" : "Follow-up removed");
+          } catch { setRemoveError("Could not remove this item. Reload and try again."); } finally { setBusy(false); }
+        }}>{busy ? "Removing…" : remove?.lead ? "Delete lead" : "Remove follow-up"}</Button></div>
+      </DialogContent></Dialog>
       <AttemptDialog
         key={attemptId}
         lead={attemptTask?.lead ?? null}

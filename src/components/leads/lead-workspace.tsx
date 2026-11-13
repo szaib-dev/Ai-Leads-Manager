@@ -87,9 +87,10 @@ export function LeadWorkspace({
   const countryStructure = useQuery("country-structure",fetchCountries);
   const parentCountry = countryStructure.data?.assignments.find(p=>p.id===pageId)?.country_id;
   const parentName = countryStructure.data?.countries.find(c=>c.id===parentCountry)?.name || "Unassigned";
-  const viewKey = `folio.lead-view:${ownerId}:${mode}:${pageId ?? "all"}`;
-  const desktopView = useSessionLeadView(`${viewKey}:desktop`, freshFilters);
-  const mobileView = useSessionLeadView(`${viewKey}:mobile`, freshFilters);
+  const viewKey = `folio.lead-view:v2:${ownerId}:${mode}:${pageId ?? "all"}`;
+  const initialFilters = mode === "page" ? { ...freshFilters, status: "New" } : freshFilters;
+  const desktopView = useSessionLeadView(`${viewKey}:desktop`, initialFilters);
+  const mobileView = useSessionLeadView(`${viewKey}:mobile`, initialFilters);
   const { filters: desktop, setFilters: setDesktop } = desktopView;
   const { filters: mobile, setFilters: setMobile } = mobileView;
   const [selected, setSelected] = useLiveSelection<Lead | null>(null);
