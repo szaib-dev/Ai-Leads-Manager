@@ -22,9 +22,9 @@ import { formatMoment } from "@/lib/analytics/contracts";
 import { AnalyticsControls } from "@/components/analytics/analytics-controls";
 import { PerformanceMetrics } from "@/components/analytics/performance-metrics";
 import type { Lead } from "@/types";
-export function ActivityPage() {
+export function ActivityPage({compact=false}:{compact?:boolean}={}) {
   const { refreshPages, toast, timezone, ownerId } = useWorkspace();
-  const filters = useAnalyticsFilters();
+  const filters = useAnalyticsFilters(compact?"30days":"today");
   const [page, setPage] = useState(1),
     [selected, setSelected] = useLiveSelection<Lead | null>(null),
     [attempt, setAttempt] = useLiveSelection<Lead | null>(null);
@@ -44,11 +44,11 @@ export function ActivityPage() {
     <>
       <PageHeader
         eyebrow="YOUR CALLING DESK"
-        title="Activity"
-        description="A clearer picture of your calls, conversations, and progress."
+        title={compact?"Call attempts":"Activity"}
+        description={compact?"Every recorded outcome, with its date and time. Select a period to see more history.":"A clearer picture of your calls, conversations, and progress."}
       />
       <div className={styles.filters}><AnalyticsControls state={filters} onChanged={() => setPage(1)} /></div>
-      <section className={styles.overview} aria-label="Activity overview">
+      {!compact&&<><section className={styles.overview} aria-label="Activity overview">
         <div className={styles.hero}>
           <span className={styles.heroIcon}><Phone size={22}/></span>
           <span className={styles.kicker}>CALLS IN THIS PERIOD</span>
@@ -73,7 +73,7 @@ export function ActivityPage() {
         {id:"callbacks", label:"Callbacks requested", value:summary?.callbacks, icon:MessageSquare},
         {id:"conversion", label:"Interest conversion", value:summary ? `${summary.conversion_rate}%` : undefined, icon:TrendingUp},
       ]} renderItem={(metric, handle) => <><div className={styles.metricTop}><metric.icon size={18}/>{handle}</div><strong>{q.loading || metric.value === undefined ? "—" : metric.value}</strong><span>{metric.label}</span></>}/>
-      <details className={styles.definitions}><summary>How these numbers are calculated</summary><PerformanceMetrics summary={summary} loading={q.loading}/></details>
+      <details className={styles.definitions}><summary>How these numbers are calculated</summary><PerformanceMetrics summary={summary} loading={q.loading}/></details></>}
       <section className="panel activity-history">
         <div className="panel-heading">
           <div>

@@ -1,5 +1,5 @@
-import { LeadWorkspace } from "@/components/leads/lead-workspace";
+import { CallAttempts } from "@/components/leads/call-attempts";
 export const metadata = { title: "Attempts" };
 export default function Attempts() {
-  return <LeadWorkspace mode="attempts" />;
+  return <CallAttempts />;
 }

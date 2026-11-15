@@ -60,7 +60,8 @@ export function Providers({
     [canFetch, setCanFetch] = useState(true),
     [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting"),
     [timezone, setZone] = useState<string>(DEFAULT_TIMEZONE),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState<{id:number;message:string}|null>(null);
+  const noticeSequence=useRef(0);
   const [aiSelectionState, setAiSelectionState] = useState<{
     epoch: number;
     pageId?: string;
@@ -122,7 +123,8 @@ export function Providers({
       flight.current = null;
     }
   }, [ownerId, queryClient]);
-  const toast = useCallback((message: string) => setNotice(message), []);
+  const toast = useCallback((message: string) => setNotice({id:++noticeSequence.current,message}), []);
+  useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(null),1000);return ()=>window.clearTimeout(timer);},[notice]);
   const setTimezone = useCallback((zone: string) => {
     if (!validTimeZone(zone)) return;
     setZone(zone);
@@ -243,10 +245,10 @@ export function Providers({
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       <div className="toast-region" aria-live="polite">
         {notice && (
-          <div className="toast">
-            <span>{notice}</span>
+          <div className="toast" key={notice.id}>
+            <span>{notice.message}</span>
             <button
-              onClick={() => setNotice("")}
+              onClick={() => setNotice(null)}
               aria-label="Dismiss notification"
             >
               ×

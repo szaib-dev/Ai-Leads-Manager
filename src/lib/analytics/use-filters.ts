@@ -16,15 +16,15 @@ export function subscribeCalendar(callback: () => void) {
     document.removeEventListener("visibilitychange", callback);
   };
 }
-export function useAnalyticsFilters() {
+export function useAnalyticsFilters(initialPeriod:Period="today") {
   const { timezone } = useWorkspace();
   const today = useSyncExternalStore(
     subscribeCalendar,
     () => dayInZone(timezone),
     () => dayInZone(timezone),
   );
-  const [period, setPeriod] = useState<Period>("today"),
-    [custom, setCustom] = useState(() => presetRange("today", timezone)),
+  const [period, setPeriod] = useState<Period>(initialPeriod),
+    [custom, setCustom] = useState(() => presetRange(initialPeriod==="custom"?"today":initialPeriod, timezone)),
     [pageId, setPageId] = useState("");
   const range = period === "custom" ? custom : rangeForDay(period, today);
   return {

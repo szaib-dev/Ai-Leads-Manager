@@ -182,7 +182,7 @@ export function AttemptDialog({
             {[...callOutcomes, "whatsapp" as const].map((s) => {
               const Icon = icons[s];
               return (
-                <label key={s} data-selected={outcome === s}>
+                <label key={s} data-selected={outcome === s} data-tone={s==="interested"?"positive":s==="not_interested"?"negative":undefined}>
                   <input
                     type="radio"
                     name="outcome"

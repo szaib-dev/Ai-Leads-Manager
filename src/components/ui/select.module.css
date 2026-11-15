@@ -118,3 +118,8 @@
 @keyframes select-in { from { opacity:0; scale:.97; translate:0 -4px; } to { opacity:1; scale:1; translate:0 0; } }
 @keyframes select-out { from { opacity:1; scale:1; } to { opacity:0; scale:.97; } }
 @media(prefers-reduced-motion:reduce) { .content[data-state] { animation:none; }.icon { transition:none; } }
+.trigger[data-tone="positive"],.item[data-tone="positive"] { color:var(--green); }
+.trigger[data-tone="negative"],.item[data-tone="negative"] { color:var(--red); }
+.item[data-tone="positive"][data-highlighted],.item[data-tone="positive"][data-state="checked"] { background:var(--green-soft); }
+.item[data-tone="negative"][data-highlighted],.item[data-tone="negative"][data-state="checked"] { background:var(--red-soft); }
+.statusDot { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; margin-right:7px; vertical-align:middle; }

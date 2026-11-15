@@ -100,3 +100,7 @@
 .body textarea { min-height:68px; }
 .footer { flex-shrink:0; margin:0 !important; padding:14px 26px max(14px,env(safe-area-inset-bottom)); background:var(--surface); border-top:1px solid var(--border); }
 @media(max-width:600px) { .sheet { padding:0 !important; }.sheet:before { display:none; }.header { padding:20px 18px 0; }.header h2 { font-size:22px; }.body { padding-inline:18px; }.footer { padding-inline:18px; }.outcomes label { min-height:56px; font-size:11px; } }
+.outcomes label[data-tone="positive"] { color:var(--green); border-color:color-mix(in srgb,var(--green) 40%,var(--border)); }
+.outcomes label[data-tone="negative"] { color:var(--red); border-color:color-mix(in srgb,var(--red) 40%,var(--border)); }
+.outcomes label[data-tone="positive"][data-selected="true"] { background:var(--green-soft); border-color:var(--green); }
+.outcomes label[data-tone="negative"][data-selected="true"] { background:var(--red-soft); border-color:var(--red); }

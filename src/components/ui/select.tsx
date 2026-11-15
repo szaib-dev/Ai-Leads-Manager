@@ -15,6 +15,7 @@ function text(node: React.ReactNode): string {
   if (React.isValidElement<OptionProps>(node)) return text(node.props.children);
   return "";
 }
+function tone(value:string){return value.toLowerCase().replaceAll("_"," ") === "not interested" ? "negative" : value.toLowerCase() === "interested" ? "positive" : undefined;}
 const EMPTY = "__folio_empty_option";
 interface Props extends Pick<
   Primitive.SelectProps,
@@ -67,6 +68,7 @@ export function Select({
         aria-label={props["aria-label"]}
         aria-describedby={props["aria-describedby"]}
         data-slot="select-trigger"
+        data-tone={tone(String(value ?? initial))}
         className={cn(
           styles.trigger,
           variant === "plain" && styles.plain,
@@ -99,9 +101,10 @@ export function Select({
                   key={`${v}:${i}`}
                   value={v}
                   disabled={o.props.disabled}
+                  data-tone={tone(String(o.props.value ?? label))}
                   className={styles.item}
                 >
-                  <Primitive.ItemText>{label}</Primitive.ItemText>
+                  <Primitive.ItemText>{tone(String(o.props.value ?? label))&&<span className={styles.statusDot} aria-hidden="true"/>}{label}</Primitive.ItemText>
                   <Primitive.ItemIndicator className={styles.check}>
                     <Check size={14} />
                   </Primitive.ItemIndicator>
