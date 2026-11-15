@@ -19,6 +19,7 @@ import { formatMoment, dayInZone } from "@/lib/analytics/contracts";
 import { statuses } from "@/types";
 import { fetchLeadRecord } from "@/lib/leads/browser-mutations";
 import { saveLead } from "@/lib/leads/browser-mutations";
+import { isCallStatus } from "@/lib/leads/call-status";
 import { statusToDb } from "@/lib/leads/contracts";
 import { SafeCallLink } from "./safe-call-link";
 import { publishLead } from "@/lib/realtime/lead-updates";
@@ -38,6 +39,8 @@ export function LeadDetails({
 }) {
   const { timezone, refreshPages, toast, ownerId } = useWorkspace();
   const deleting = useRef(false);
+  const [statusTouched,setStatusTouched]=useState(false);
+  const statusRequest=useRef(crypto.randomUUID());
   const [lead, setLead] = useState(initialLead);
   const [editing, setEditing] = useState(false);
   async function reloadSaved(closeEdit = true) {
@@ -126,6 +129,7 @@ export function LeadDetails({
               disabled={busy || editing}
               onClick={() => {
                 setStatus(lead.status);
+                setStatusTouched(false);statusRequest.current=crypto.randomUUID();
                 setRejectConfirmed(false);
                 setEditing(true);
               }}
@@ -232,6 +236,7 @@ export function LeadDetails({
                 const result = await saveLead({
                   id: lead.id,
                   expected: lead.updatedAt!,
+                  recordAttempt:statusTouched&&isCallStatus(status),requestId:statusRequest.current,
                   data: {
                     business_name: String(form.get("business_name")),
                     phone: String(form.get("phone")),
@@ -313,7 +318,7 @@ export function LeadDetails({
                     style={{ width: "100%", marginTop: 8, minHeight: 44 }}
                     value={status}
                     onValueChange={(value) => {
-                      setStatus(value as Lead["status"]);
+                      setStatus(value as Lead["status"]);setStatusTouched(true);
                       setRejectConfirmed(false);
                     }}
                   >
@@ -322,6 +327,7 @@ export function LeadDetails({
                     ))}
                   </Select>
                 </label>
+                {statusTouched&&isCallStatus(status)&&<p className="small muted">Saving this outcome records one attempt with its date and time.</p>}
                 {(status === "Follow-up" || status === "Meeting Booked") && (
                   <div className="form-row">
                     <label>

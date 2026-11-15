@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { writeFileSync, readFileSync, existsSync } from "node:fs";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 export async function startWorkspaceFixture() {
-  const countries=[],cities=[];
+  const countries=[],cities=[],callRequests=new Map();
   const pages = [],
     leads = [],
     chats = [],
@@ -336,44 +336,40 @@ export async function startWorkspaceFixture() {
         revision++;
         return send(randomUUID());
       }
+      if(name === "record_call_activity"){
+        if(callRequests.has(body.p_request))return send(callRequests.get(body.p_request));
+        if(!row){res.writeHead(400);return send({message:"Lead unavailable"});}
+        Object.assign(row,body.p_data||{});
+        body.p_outcome=body.p_status==="follow_up"?"callback_requested":body.p_status;
+        name="record_call";
+      }
       if (name === "record_call") {
         row.attempts++;
-        row.failed_attempts++;
-        row.status = body.p_outcome;
+        row.failed_attempts=["no_answer","voicemail"].includes(body.p_outcome)?row.failed_attempts+1:0;
+        row.status = body.p_outcome==="callback_requested"?"follow_up":body.p_outcome;
+        if(body.p_outcome==="not_interested")row.archived_at=now();
+        row.last_contacted_at=now();
+        row.last_attempt_at=now();
         row.updated_at = now();
+        for(const task of apiFollowups.filter(f=>f.lead_id===row.id&&!f.completed_at&&!f.cancelled_at)){task.completed_at=now();task.completion_outcome=body.p_outcome;}
         calls.push({
           id: randomUUID(),
           lead_id: row.id,
           occurred_at: now(),
           business_name: row.business_name,
           outcome: body.p_outcome,
-          attempt_number: 1,
+          attempt_number: row.attempts,
           notes: body.p_notes,
           voided_at: null,
         });
         revision++;
-        return send(randomUUID());
+        const change=randomUUID();callRequests.set(body.p_request,change);return send(change);
       }
       if (name === "is_lead_suppressed") return send(false);
-      if (name === "calling_history_range")
-        return send({
-          rows: calls,
-          total: calls.length,
-          summary: {
-            attempts: 1,
-            businesses_contacted: 1,
-            unanswered: 1,
-            voicemails: 0,
-            answered: 0,
-            interested: 0,
-            rejected: 0,
-            followups: 0,
-            meetings: 0,
-            callbacks: 0,
-            answer_rate: 0,
-            conversion_rate: 0,
-          },
-        });
+      if(name==="calling_history_range"||name==="analytics_report"){
+        const summary={attempts:calls.length,businesses_contacted:new Set(calls.map(c=>c.lead_id)).size,unanswered:calls.filter(c=>c.outcome==="no_answer").length,voicemails:calls.filter(c=>c.outcome==="voicemail").length,answered:calls.filter(c=>!["no_answer","voicemail"].includes(c.outcome)).length,interested:calls.filter(c=>c.outcome==="interested").length,rejected:calls.filter(c=>c.outcome==="not_interested").length,followups:calls.filter(c=>c.outcome==="callback_requested").length,meetings:calls.filter(c=>c.outcome==="meeting_booked").length,callbacks:calls.filter(c=>c.outcome==="awaiting_callback").length,answer_rate:0,conversion_rate:0};
+        return send(name==="calling_history_range"?{rows:calls,total:calls.length,summary}:{summary,current:{},daily:[],recent:[],timezone:"Asia/Karachi"});
+      }
       if (name === "ai_assistant_state")
         return send({
           mode: "strict",

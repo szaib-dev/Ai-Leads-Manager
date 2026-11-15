@@ -7,7 +7,7 @@ import { fromDb, type ActionResult } from "./contracts";
 // The RPC enforces ownership, field restrictions, workflow history and stale-write protection.
 // Send confirmed edits directly so background Server Action reads cannot queue a save.
 export async function saveLead(input: {
-  id: string; expected: string; data: unknown;
+  id: string; expected: string; data: unknown; recordAttempt?:boolean; requestId?:string;
   action?: "edit" | "delete" | "archive" | "restore";
 }): Promise<ActionResult<true>> {
   try {
@@ -15,9 +15,12 @@ export async function saveLead(input: {
     const expected = z.iso.datetime({ offset: true }).parse(input.expected);
     const data = editSchema.parse(input.data);
     const action = z.enum(["edit", "delete", "archive", "restore"]).parse(input.action || "edit");
-    const result = await createClient().rpc("save_lead", {
-      p_id: id, p_expected: expected, p_data: data, p_action: action,
-    });
+    const client=createClient();
+    let result;
+    if(input.recordAttempt && action==="edit" && data.status && data.status!=="new"){
+      const {status,scheduled_date,scheduled_time,...fields}=data;
+      result=await client.rpc("record_call_activity" as never,{p_lead:id,p_expected:expected,p_request:uuidSchema.parse(input.requestId||crypto.randomUUID()),p_status:status,p_data:fields,p_notes:data.notes||"",p_date:scheduled_date||null,p_time:scheduled_time||null} as never);
+    }else result=await client.rpc("save_lead",{p_id:id,p_expected:expected,p_data:data,p_action:action});
     if (result.error) return { error: result.error.message };
     return { data: true };
   } catch (error) {

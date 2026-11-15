@@ -8,10 +8,12 @@ export const callOutcomes = [
   "callback_requested",
   "meeting_booked",
   "awaiting_callback",
+  "whatsapp",
 ] as const;
 export type CallOutcome = (typeof callOutcomes)[number];
 export const outcomeLabels: Record<string, string> = {
   awaiting_callback: "They'll Call Me Back",
+  whatsapp: "Continued on WhatsApp",
   other: "Other",
   no_answer: "No Answer",
   voicemail: "Voicemail",

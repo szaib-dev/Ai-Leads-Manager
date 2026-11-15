@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { callOutcomeStatus } from "@/lib/leads/call-status";
 import { databaseContext } from "@/lib/db/context";
 import { assertOutreachAllowed } from "@/lib/domain/outreach";
 import { uuidSchema } from "@/lib/validation/domain";
@@ -65,17 +66,19 @@ export async function recordCall(
 ): Promise<ActionResult<string>> {
   try {
     const p = attemptSchema.parse(input);
-    const id = await rpc("record_call", {
+    const {client}=await databaseContext();
+    const result = await client.rpc("record_call_activity" as never, {
       p_lead: p.leadId,
       p_expected: p.expected,
       p_request: p.requestId,
-      p_outcome: p.outcome,
+      p_status: callOutcomeStatus[p.outcome],
       p_notes: p.notes,
       p_date: p.date ?? null,
       p_time: p.time ?? null,
       p_followup: p.followupId ?? null,
-    });
-    return { data: id };
+    } as never);
+    if(result.error)throw new Error(result.error.message);
+    return { data: String(result.data) };
   } catch (e) {
     return { error: errorMessage(e) };
   }

@@ -1,5 +1,4 @@
 "use client";
-import { saveWhatsApp } from "@/lib/leads/whatsapp-actions";
 import { SafeCallLink } from "./safe-call-link";
 import styles from "./calling.module.css";
 import { useRef, useState } from "react";
@@ -85,7 +84,7 @@ export function AttemptDialog({
         <DialogTitle>How did the call go?</DialogTitle>
         <DialogDescription>
           {lead?.name} · {lead?.attempts ?? 0} counted attempts. Only
-          confirmation records a new attempt.
+          confirmation records a dated attempt.
         </DialogDescription>
         {lead && (
           <div className={styles.call}>
@@ -107,20 +106,15 @@ export function AttemptDialog({
             setBusy(true);
             setError("");
             try {
-              if (outcome === "whatsapp") {
-                publishLead({ ...lead, status: "WhatsApp" });
-                const r = await saveWhatsApp({ id: lead.id, expected: lead.updatedAt!, status: "Waiting for Reply", notes, date: "" });
-                if (r.error) { publishLead(lead); setError(r.error); }
-                else { toast("Moved to WhatsApp Conversations"); onClose(); void refreshPages().catch(() => toast("Conversation saved. Counts will retry when connected.")); }
-                return;
-              }
               const failed = outcome === "no_answer" || outcome === "voicemail";
               const optimistic: Lead = {
                 ...lead,
                 attempts: lead.attempts + 1,
+                lastAttemptAt:new Date().toISOString(),
+                contactedAt:new Date().toISOString(),
                 failedAttempts: failed ? lead.failedAttempts + 1 : 0,
                 status:
-                  outcome === "awaiting_callback"
+                  outcome === "whatsapp" ? "WhatsApp" : outcome === "awaiting_callback"
                     ? "Awaiting Callback"
                     : outcome === "callback_requested"
                       ? "Follow-up"
@@ -147,7 +141,7 @@ export function AttemptDialog({
                 requestId,
                 outcome,
                 notes,
-                date: scheduled
+                date: outcome==="whatsapp" ? dayInZone(timezone) : scheduled
                   ? String(f.get("followupDate") || "") || undefined
                   : undefined,
                 time: scheduled
@@ -179,7 +173,7 @@ export function AttemptDialog({
         >
           <div className={styles.body}><fieldset className={styles.outcomes} disabled={busy}>
             <legend>Call outcome</legend>
-            {[...callOutcomes, "whatsapp" as const].map((s) => {
+            {callOutcomes.map((s) => {
               const Icon = icons[s];
               return (
                 <label key={s} data-selected={outcome === s} data-tone={s==="interested"?"positive":s==="not_interested"?"negative":undefined}>

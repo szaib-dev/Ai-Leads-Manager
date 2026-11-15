@@ -1112,6 +1112,7 @@ export type Database = {
         | "callback_requested"
         | "meeting_booked"
         | "awaiting_callback"
+        | "whatsapp"
         | "other"
       event_kind: "call_attempt" | "followup_scheduled" | "meeting_scheduled"
       import_status:
@@ -1283,6 +1284,7 @@ export const Constants = {
         "callback_requested",
         "meeting_booked",
         "awaiting_callback",
+        "whatsapp",
         "other",
       ],
       event_kind: ["call_attempt", "followup_scheduled", "meeting_scheduled"],

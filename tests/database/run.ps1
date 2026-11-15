@@ -22,7 +22,8 @@ try {
   $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | Where-Object Name -LT '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'security.sql'),(Join-Path $PSScriptRoot 'imports.sql')) + @($migrations | Where-Object Name -GE '202611030004' | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'workflows.sql'),(Join-Path $PSScriptRoot 'workflow-integrity.sql'),(Join-Path $PSScriptRoot 'analytics.sql'),(Join-Path $PSScriptRoot 'ai-mapping.sql'),(Join-Path $PSScriptRoot 'assistant.sql'),(Join-Path $PSScriptRoot 'assistant-safety.sql'),(Join-Path $PSScriptRoot 'chat.sql'),(Join-Path $PSScriptRoot 'intelligent-imports.sql'),(Join-Path $PSScriptRoot 'chat-tools.sql'),(Join-Path $PSScriptRoot 'critical-fixes.sql'),(Join-Path $PSScriptRoot 'conversational-files.sql'),(Join-Path $PSScriptRoot 'integrations.sql'))
   if ($ChatToolsOnly) { $files = @((Join-Path $PSScriptRoot 'bootstrap.sql')) + @($migrations | ForEach-Object FullName) + @((Join-Path $PSScriptRoot 'chat-tools.sql'),(Join-Path $PSScriptRoot 'critical-fixes.sql'),(Join-Path $PSScriptRoot 'conversational-files.sql'),(Join-Path $PSScriptRoot 'integrations.sql')) }
   foreach ($file in $files) {
-    & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f $file
+    $transactionArgs = if ((Split-Path $file -Leaf) -eq "202611150034_confirmed_call_activity.sql") { @("--single-transaction") } else { @() }
+    & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 @transactionArgs -f $file
     if ($LASTEXITCODE -ne 0) { throw "SQL check failed: $file" }
   }
   & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'global-search.sql')
@@ -33,6 +34,8 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Private patch checks failed' }
   & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'city-folders.sql')
   if ($LASTEXITCODE -ne 0) { throw 'City folder checks failed' }
+  & (Join-Path $PgBin 'psql.exe') -X -q -h 127.0.0.1 -p 55432 -U phase2_test -d $database -v ON_ERROR_STOP=1 -f (Join-Path $PSScriptRoot 'confirmed-call-activity.sql')
+  if ($LASTEXITCODE -ne 0) { throw 'Confirmed call checks failed' }
   if (!$ChatToolsOnly) {
   & node (Join-Path $PSScriptRoot 'concurrency.mjs') $PgBin $database
   if ($LASTEXITCODE -ne 0) { throw 'Concurrent duplicate protection failed' }
